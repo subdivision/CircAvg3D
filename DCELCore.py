@@ -922,10 +922,10 @@ class DCtrlMesh(object):
         d = edge.he.dest()
         l = edge.he.prev.vert
         r = edge.he.twin.prev.vert
-        h_pt, h_nr = self.average_vertices(0.5, s.pt, d.pt, s.nr, d.nr)
-        v_pt, v_nr = self.average_vertices(0.5, l.pt, r.pt, l.nr, r.nr)
-        r_pt, r_nr = self.average_vertices(0.75, h_pt, v_pt, h_nr, v_nr)
-        return r_pt, r_nr
+        w = [3./8., 3./8., 1./8., 1./8.]
+        v = [s,d,l,r]
+        res_pt, res_nr = self.compute_sum_as_repeated_averages(v, w)
+        return res_pt, res_nr
 
     #-------------------------------------------------------------------------
     def refine_vertex_as_loop(self, vert):
