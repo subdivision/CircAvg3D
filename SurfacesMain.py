@@ -106,14 +106,16 @@ def srf_main():
     #circ_avg_ctrl_mesh, circ_res_name = create_tower_mesh(2, circle_avg_3D)
     #circ_avg_ctrl_mesh, circ_res_name = create_cube4_mesh(2, circle_avg_3D)
     #circ_avg_ctrl_mesh, circ_res_name = create_torus4_mesh(2, circle_avg_3D, init_vrts_torus)
-    circ_avg_ctrl_mesh, circ_res_name = create_cube3_mesh(2, circle_avg_3D)
-    #circ_avg_ctrl_mesh, circ_res_name = create_tri_mesh_stl_file(2, circle_avg_3D, 'fox.stl')
+    #circ_avg_ctrl_mesh, circ_res_name = create_torus3_mesh(2, circle_avg_3D, init_vrts_torus)
+    #circ_avg_ctrl_mesh, circ_res_name = create_cube3_mesh(2, circle_avg_3D)
+    circ_avg_ctrl_mesh, circ_res_name = create_tri_mesh_stl_file(2, circle_avg_3D, 'fox.stl')
  
     #lin_ctrl_mesh, lin_res_name = create_tower_mesh(3, linear_avg)
     #lin_ctrl_mesh, lin_res_name = create_cube4_mesh(3, linear_avg)
     #lin_ctrl_mesh, lin_res_name = create_torus4_mesh(3, linear_avg, init_vrts_torus)
-    lin_ctrl_mesh, lin_res_name = create_cube3_mesh(3, linear_avg)
-    #lin_ctrl_mesh, lin_res_name = create_tri_mesh_stl_file(3, linear_avg, 'fox.stl')
+    #lin_ctrl_mesh, lin_res_name = create_torus3_mesh(3, linear_avg, init_vrts_torus)
+    #lin_ctrl_mesh, lin_res_name = create_cube3_mesh(3, linear_avg)
+    lin_ctrl_mesh, lin_res_name = create_tri_mesh_stl_file(3, linear_avg, 'fox.stl')
 
     circ_res_name += res_file_suffix
     lin_res_name += res_file_suffix
