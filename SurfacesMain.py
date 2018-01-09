@@ -31,7 +31,24 @@ def avg_fn_to_str(avg_fn):
     return '_circ_' if avg_fn == circle_avg_3D else '_lin_'
 
 #-----------------------------------------------------------------------------
-def create_tower_mesh(id, avg_func):
+def create_tetrahedron3_mesh(id, avg_func):
+    file_prefix = 'tetrahedron_3' + avg_fn_to_str(avg_func)
+    orig_ctrl_mesh = DCtrlMesh(id, avg_func)
+    orig_ctrl_mesh.init_as_tetrahedron()
+    return orig_ctrl_mesh, file_prefix
+
+#-----------------------------------------------------------------------------
+def create_tetrahedron4_mesh(id, avg_func):
+    file_prefix = 'tetrahedron_4' + avg_fn_to_str(avg_func)
+    orig_ctrl_mesh = DCtrlMesh(id, avg_func)
+    orig_ctrl_mesh.init_as_tetrahedron()
+    orig_ctrl_mesh = orig_ctrl_mesh.refine_as_catmull_clark(\
+        get_edge_vertex_func = DCtrlMesh.get_edge_vertex_as_mid,
+        get_vrtx_vertex_func = DCtrlMesh.get_vrtx_vertex_as_copy)
+    return orig_ctrl_mesh, file_prefix
+
+#-----------------------------------------------------------------------------
+def create_tower4_mesh(id, avg_func):
     file_prefix = 'tower_4' + avg_fn_to_str(avg_func)
     orig_ctrl_mesh = DCtrlMesh(id, avg_func)
     orig_ctrl_mesh.init_as_quad_cube(10.)
@@ -81,7 +98,7 @@ def create_torus3_mesh(id, avg_func, n_of_verts_in_init_torus):
     return orig_ctrl_mesh, file_prefix
 
 #-----------------------------------------------------------------------------
-def create_tri_mesh_stl_file(id, avg_func, file_name):
+def create_mesh3_stl_file(id, avg_func, file_name):
     file_prefix = file_name + '_3' + avg_fn_to_str(avg_func)
     orig_ctrl_mesh = DCtrlMesh(id, avg_func)
     inp_file = INP_PATH_PREFIX + file_name
@@ -90,9 +107,24 @@ def create_tri_mesh_stl_file(id, avg_func, file_name):
     return orig_ctrl_mesh, file_prefix
 
 #-----------------------------------------------------------------------------
+def create_mesh4_stl_file(id, avg_func, file_name):
+    file_prefix = file_name + '_4' + avg_fn_to_str(avg_func)
+    orig_ctrl_mesh = DCtrlMesh(id, avg_func)
+    inp_file = INP_PATH_PREFIX + file_name
+    orig_ctrl_mesh.init_as_triang_mesh_stl_file(inp_file)
+    orig_ctrl_mesh = orig_ctrl_mesh.refine_as_catmull_clark(\
+        get_edge_vertex_func = DCtrlMesh.get_edge_vertex_as_mid,
+        get_vrtx_vertex_func = DCtrlMesh.get_vrtx_vertex_as_copy)
+    orig_ctrl_mesh.set_naive_normals()
+    return orig_ctrl_mesh, file_prefix
+
+#-----------------------------------------------------------------------------
 def srf_main():
-    n_of_iterations = 3
+    n_of_iterations = 4
     init_vrts_torus = 6
+    stl_file_name = 'fox.stl'
+    #stl_file_name = 'bunny.stl'
+    #stl_file_name = 'cube.stl'
     #plot_debug = True
     plot_debug = False
 
@@ -103,19 +135,23 @@ def srf_main():
 
     res_file_suffix = ref_name + str(n_of_iterations) + 'iters.off'
 
-    #circ_avg_ctrl_mesh, circ_res_name = create_tower_mesh(2, circle_avg_3D)
+    #circ_avg_ctrl_mesh, circ_res_name = create_tower4_mesh(2, circle_avg_3D)
     #circ_avg_ctrl_mesh, circ_res_name = create_cube4_mesh(2, circle_avg_3D)
     #circ_avg_ctrl_mesh, circ_res_name = create_torus4_mesh(2, circle_avg_3D, init_vrts_torus)
     #circ_avg_ctrl_mesh, circ_res_name = create_torus3_mesh(2, circle_avg_3D, init_vrts_torus)
     #circ_avg_ctrl_mesh, circ_res_name = create_cube3_mesh(2, circle_avg_3D)
-    circ_avg_ctrl_mesh, circ_res_name = create_tri_mesh_stl_file(2, circle_avg_3D, 'fox.stl')
+    circ_avg_ctrl_mesh, circ_res_name = create_mesh3_stl_file(2, circle_avg_3D, stl_file_name)
+    #circ_avg_ctrl_mesh, circ_res_name = create_mesh4_stl_file(2, circle_avg_3D, stl_file_name)
+    #circ_avg_ctrl_mesh, circ_res_name = create_tetrahedron3_mesh(2, circle_avg_3D)
  
-    #lin_ctrl_mesh, lin_res_name = create_tower_mesh(3, linear_avg)
+    #lin_ctrl_mesh, lin_res_name = create_tower4_mesh(3, linear_avg)
     #lin_ctrl_mesh, lin_res_name = create_cube4_mesh(3, linear_avg)
     #lin_ctrl_mesh, lin_res_name = create_torus4_mesh(3, linear_avg, init_vrts_torus)
     #lin_ctrl_mesh, lin_res_name = create_torus3_mesh(3, linear_avg, init_vrts_torus)
     #lin_ctrl_mesh, lin_res_name = create_cube3_mesh(3, linear_avg)
-    lin_ctrl_mesh, lin_res_name = create_tri_mesh_stl_file(3, linear_avg, 'fox.stl')
+    lin_ctrl_mesh, lin_res_name = create_mesh3_stl_file(3, linear_avg, stl_file_name)
+    #lin_ctrl_mesh, lin_res_name = create_mesh4_stl_file(3, linear_avg, stl_file_name)
+    #lin_ctrl_mesh, lin_res_name = create_tetrahedron3_mesh(3, linear_avg)
 
     circ_res_name += res_file_suffix
     lin_res_name += res_file_suffix
@@ -123,11 +159,23 @@ def srf_main():
     for i in range(n_of_iterations):
         circ_avg_ctrl_mesh = ref_method(circ_avg_ctrl_mesh)
         lin_ctrl_mesh = ref_method(lin_ctrl_mesh)
+        #circ_avg_ctrl_mesh = circ_avg_ctrl_mesh.refine_by_interpolation(\
+        #    DCtrlMesh.get_edge_vertex_as_mid, 
+        #    DCtrlMesh.split_triang_face_as_butterfly)
+        #lin_ctrl_mesh = lin_ctrl_mesh.refine_by_interpolation(\
+        #    DCtrlMesh.get_edge_vertex_as_mid, 
+        #    DCtrlMesh.split_triang_face_as_butterfly)
        
     circ_avg_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + circ_res_name)
     lin_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + lin_res_name)
+
+    #lin_ctrl_mesh2, lin_res_name2 = create_tetrahedron3_mesh(4, linear_avg)
+    #lin_ctrl_mesh2, lin_res_name2 = create_cube3_mesh(4, linear_avg)
+    #lin_res_name2 = 'orig_mesh.off'
+    #lin_ctrl_mesh2.dump_obj_file(RES_PATH_PREFIX + lin_res_name2)
+
     if plot_debug:
-        plot_results(lin_ctrl_mesh2, None, lin_ctrl_mesh)
+        plot_results(lin_ctrl_mesh2, circ_avg_ctrl_mesh, None)
     
 #-----------------------------------------------------------------------------
 if __name__ == "__main__":

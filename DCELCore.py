@@ -704,15 +704,6 @@ class DCtrlMesh(object):
                           DCtrlMesh.split_edge_as_kob4pt, 
                           DCtrlMesh.split_quad_face_by_center_insert_4neighbs)
         return refined_mesh
-
-    #-------------------------------------------------------------------------
-    def refine_as_lane_riesenfeld(self, spline_degree = 3):
-        refined_mesh = self.refine_by_interpolation(
-                          DCtrlMesh.split_edge_as_lane_riesenfeld, 
-                          DCtrlMesh.split_quad_face_by_center_insert_2neighbs)
-        for i in range(spline_degree-1):
-            refined_mesh = refined_mesh.refine_by_lr_smoothing()
-        return refined_mesh
     
     #-------------------------------------------------------------------------
     def refine_as_butterfly(self):
@@ -722,29 +713,37 @@ class DCtrlMesh(object):
         return refined_mesh
 
     #-------------------------------------------------------------------------
-    def refine_as_catmull_clark(self):
+    def refine_as_catmull_clark(self, get_edge_vertex_func = None, 
+                                get_vrtx_vertex_func = None):
+        if get_edge_vertex_func == None:
+            get_edge_vertex_func = DCtrlMesh.get_edge_vertex_as_cc
+        if get_vrtx_vertex_func == None:
+            get_vrtx_vertex_func = DCtrlMesh.get_vrtx_vertex_as_cc
+
         refined_mesh = DCtrlMesh(self.eid+1, self.averaging_fn)
         refined_mesh.idgen = IDGenerator(self.idgen.curr + self.idgen.step)
         old_faces_2_new_verts = {}
         for face in self.f:
-            avg_pt, avg_nr = self.get_quad_face_vertex_as_lr(face)
+            avg_pt, avg_nr = self.get_face_average_vertex(face)
             avg_vert = refined_mesh.create_vertex(avg_pt)
             avg_vert.set_nr(avg_nr)
             old_faces_2_new_verts[face.eid] = avg_vert
 
         old_edges_2_new_verts = {}
         for edge in self.e:
-            avg_pt, avg_nr = self.get_edge_vertex_as_cc(edge, 
-                                                        old_faces_2_new_verts)
+            avg_pt, avg_nr = get_edge_vertex_func(self, 
+                                                  edge, 
+                                                  old_faces_2_new_verts)
             avg_vert = refined_mesh.create_vertex(avg_pt)
             avg_vert.set_nr(avg_nr)
             old_edges_2_new_verts[edge.eid] = avg_vert
 
         old_verts_2_new_verts = {}
         for vrtx in self.v:
-            avg_pt, avg_nr = self.get_vrtx_vertex_as_cc(vrtx, 
-                                                        old_faces_2_new_verts,
-                                                        old_edges_2_new_verts)
+            avg_pt, avg_nr = get_vrtx_vertex_func(self, 
+                                                  vrtx, 
+                                                  old_faces_2_new_verts,
+                                                  old_edges_2_new_verts)
             avg_vert = refined_mesh.create_vertex(avg_pt)
             avg_vert.set_nr(avg_nr)
             old_verts_2_new_verts[vrtx.eid] = avg_vert
@@ -764,37 +763,7 @@ class DCtrlMesh(object):
                 refined_mesh.produce_face(new_vertices, vertices_2_edges)
 
         return refined_mesh
-        
-    #-------------------------------------------------------------------------
-    def refine_by_lr_smoothing(self):
-        refined_mesh = DCtrlMesh(self.eid+1, self.averaging_fn)
-        refined_mesh.idgen = IDGenerator(self.idgen.curr + self.idgen.step)
-        old_faces_2_new_verts = {}
-        for face in self.f:
-            avg_pt, avg_nr = self.get_quad_face_vertex_as_lr(face)
-            avg_vert = refined_mesh.create_vertex(avg_pt)
-            avg_vert.set_nr(avg_nr)
-            old_faces_2_new_verts[face.eid] = avg_vert
-        
-        vertices_2_edges = {}
-        for vrtx in self.v:
-            faces = vrtx.get_faces()
-            new_vertices = []
-            for f in faces:
-                new_vertices.append(old_faces_2_new_verts[f.eid])
-            n = len(new_vertices)
-            new_edges = []
-            for i in range(n):
-                curr_new_vrtx = new_vertices[i]
-                next_new_vrtx = new_vertices[(i+1)%n]
-                new_edges.append(
-                    refined_mesh.get_or_create_edge(vertices_2_edges, 
-                                                    curr_new_vrtx, 
-                                                    next_new_vrtx))
-            new_face = refined_mesh.create_face()
-            refined_mesh.compile_face(new_vertices, new_edges, new_face)
-        return refined_mesh
-            
+                   
     #-------------------------------------------------------------------------
     def get_edge_vertex_as_cc(self, edge, old_faces_2_new_verts):
         left_face, right_face = edge.get_faces()
@@ -847,6 +816,22 @@ class DCtrlMesh(object):
         return res_pt, res_nr
 
     #-------------------------------------------------------------------------
+    def get_vrtx_vertex_as_copy(self, vrtx, 
+                                faces_2_verts = None, 
+                                edges_2_verts = None):
+        return vrtx.pt, vrtx.nr
+
+    #-------------------------------------------------------------------------
+    def get_edge_vertex_as_mid(self, edge, old_faces_2_new_verts = None):
+        src_vrtx, dst_vrtx = edge.get_vertices()
+        res_pt, res_nr = self.average_vertices(0.5, 
+                                               src_vrtx.pt, 
+                                               dst_vrtx.pt,
+                                               src_vrtx.nr, 
+                                               dst_vrtx.nr)
+        return res_pt, res_nr        
+
+    #-------------------------------------------------------------------------
     def compute_sum_as_repeated_averages(self, pnps, weights=None):
         n = len(pnps)
         if weights == None:
@@ -865,21 +850,9 @@ class DCtrlMesh(object):
         return avg_pt, avg_nr
 
     #-------------------------------------------------------------------------
-    def get_quad_face_vertex_as_lr(self, face):
-        '''
-        @assumption: face has indeed 4 edges
-        '''
-
+    def get_face_average_vertex(self, face):
         v = face.get_vertices()
-        assert len(v) == 4
-        res_pt1, res_norm1 = self.average_vertices(0.5, 
-                                                   v[0].pt, v[2].pt, 
-                                                   v[0].nr, v[2].nr)
-        res_pt2, res_norm2 = self.average_vertices(0.5, 
-                                                   v[1].pt, v[3].pt, 
-                                                   v[1].nr, v[3].nr)
-        res_pt, res_norm = self.average_vertices(0.5, res_pt1, res_pt2, 
-                                                 res_norm1, res_norm2)
+        res_pt, res_norm = self.compute_sum_as_repeated_averages(v)
         return res_pt, res_norm
         
     #-------------------------------------------------------------------------
@@ -931,10 +904,16 @@ class DCtrlMesh(object):
     def refine_vertex_as_loop(self, vert):
         vrts = vert.get_neighbor_vertices()
         n = len(vrts)
-        vrts.append(vert)
-        alpha = 3./8. + (3./8. + 0.25 * np.cos(2.*np.pi/n))**2
-        weights = [(1. - alpha)/n]*n
-        weights.append(alpha)
+        vrts.insert(0, vert)
+        #alpha = 3./8. + (3./8. + 0.25 * np.cos(2.*np.pi/n))**2
+        #weights = [(1. - alpha)/n]*n
+        #weights.append(alpha)
+        if n > 3:
+            beta = 3./(8.*n)
+        else:
+            beta = 3./16.
+        alpha = 1. - n*beta
+        weights = [alpha] + [beta]*n
         res_pt, res_nr = self.compute_sum_as_repeated_averages(vrts, weights)
         return res_pt, res_nr
 
@@ -1007,53 +986,6 @@ class DCtrlMesh(object):
 
         inner_face = refined_mesh.create_face()
         refined_mesh.compile_face(inner_face_verts, new_inner_edges, inner_face)
-        
-
-    #-------------------------------------------------------------------------
-    def split_quad_face_by_center_insert_2neighbs(self, face, 
-                                                  refined_mesh, 
-                                                  old_edges_2_new_verts,
-                                                  old_edges_2_new_edges,
-                                                  old_verts_2_new_verts):
-        old_verts = face.get_vertices()
-        old_edges = face.get_edges()
-        new_mid_vertices = []
-        new_inner_edges = []
-        for i in range(len(old_edges)):
-            new_mid_vertices.append(old_edges_2_new_verts[old_edges[i].eid])
-            new_inner_edges.append(refined_mesh.create_edge())
-
-        ub_pt, ub_norm = self.average_vertices(0.5, 
-                                               new_mid_vertices[0].pt,
-                                               new_mid_vertices[2].pt, 
-                                               new_mid_vertices[0].nr,
-                                               new_mid_vertices[2].nr)
-        rl_pt, rl_norm = self.average_vertices(0.5, 
-                                               new_mid_vertices[1].pt,
-                                               new_mid_vertices[3].pt, 
-                                               new_mid_vertices[1].nr,
-                                               new_mid_vertices[3].nr)
-        cntr_pt, cntr_norm = self.average_vertices(0.5, ub_pt, rl_pt, 
-                                                 ub_norm, rl_norm)
-        cntr_vert = refined_mesh.create_vertex(cntr_pt)
-        cntr_vert.set_nr(cntr_norm)
-        for i in [0,1,2,3]:
-            new_face = refined_mesh.create_face()
-            inner_prev_edge = new_inner_edges[(i+3)%4]
-            inner_curr_edge = new_inner_edges[i]
-            new_face_verts = [old_verts_2_new_verts[old_verts[i].eid], 
-                              new_mid_vertices[i], 
-                              cntr_vert, 
-                              new_mid_vertices[(i+3)%4]]
-            new_face_edges = [old_edges_2_new_edges[(old_edges[i].eid, 
-                                                     old_verts[i].eid)],
-                              inner_curr_edge,
-                              inner_prev_edge,
-                              old_edges_2_new_edges[(old_edges[(i+3)%4].eid, 
-                                                     old_verts[i].eid)]]
-            refined_mesh.compile_face(new_face_verts, 
-                                      new_face_edges, 
-                                      new_face)
 
     #-------------------------------------------------------------------------
     def split_quad_face_by_center_insert_4neighbs(self, face, 
@@ -1177,15 +1109,8 @@ class DCtrlMesh(object):
         return res_pt, res_nr
 
     #-------------------------------------------------------------------------
-    def split_edge_as_lane_riesenfeld(self, edge):
-        s = edge.he.vert
-        d = edge.he.twin.vert 
-        res_pt, res_nr = self.average_vertices(0.5, s.pt, d.pt, s.nr, d.nr )
-        return res_pt, res_nr
-
-    #-------------------------------------------------------------------------
     def split_edge_as_butterfly(self, edge):
-        res_pt, res_norm = self.split_edge_as_butterfly_v1(edge)
+        res_pt, res_norm = self.split_edge_as_butterfly_v3(edge)
         #res_pt2, res_norm2 = self.split_edge_as_butterfly_v2(edge)
         #res_pt, res_norm = self.average_vertices(0.5, res_pt1, res_pt2, 
         #                                         res_norm1, res_norm2)
@@ -1279,6 +1204,35 @@ class DCtrlMesh(object):
         return res_pt, res_nr
            
     #-------------------------------------------------------------------------
+    def split_edge_as_butterfly_v3(self, edge):
+        '''
+          -1/16     1/8    -1/16
+            UL-------U-------UR
+              \     / \     /
+               \   /   \   /
+                \ /     \ /
+             1/2 S---R-->D 1/2
+                / \     / \
+               /   \   /   \
+              /     \ /     \
+            BL-------B-------BR
+          -1/16     1/8    -1/16
+        '''
+        s = edge.he.vert
+        d = edge.he.twin.vert 
+        u = edge.he.prev.vert
+        b = edge.he.twin.prev.vert
+        ur = edge.he.next.twin.prev.vert
+        ul = edge.he.prev.twin.prev.vert
+        br = edge.he.twin.prev.twin.prev.vert
+        bl = edge.he.twin.next.twin.prev.vert
+        vertices = [s,d, u, b, ur, ul, br, bl]
+        weights = [0.5, 0.5, 0.125, 0.125] + [-0.0625]*4
+        res_pt, res_nr = self.compute_sum_as_repeated_averages(\
+                          vertices, weights)
+        return res_pt, res_nr
+
+    #-------------------------------------------------------------------------
     def average_vertices(self, t0, p0, p1, n0, n1):
         res_pt, res_norm, cntr_pt,  radius_2D, beta1, beta2 = \
                                        self.averaging_fn(t0, 1.0 - t0, True, 
@@ -1352,13 +1306,18 @@ class DCtrlMesh(object):
     #-------------------------------------------------------------------------
     def init_as_tetrahedron(self):
         self.idgen = IDGenerator()
-        v1 = self.create_vertex([0., 0., 1.])
+        v1 = self.create_vertex([0., 0., 10.])
         #alt_norm = np.array([1., 1., 1.])                     
         #alt_norm /= np.linalg.norm(alt_norm)
         #v1.set_nr(alt_norm)
-        v2 = self.create_vertex([1.0, 0., 0.])                     
-        v3 = self.create_vertex([np.cos(2.*m.pi/3.), np.sin(2.*m.pi/3.), 0.])                     
-        v4 = self.create_vertex([np.cos(4.*m.pi/3.), np.sin(4.*m.pi/3.), 0.])                     
+        v2 = self.create_vertex([10.0, 0., 0.])                     
+        v3 = self.create_vertex([10. * np.cos(2.*m.pi/3.), 
+                                 10. * np.sin(2.*m.pi/3.), 
+                                 0.])
+        v4x = -np.sin(m.pi/6.)*np.cos(m.pi/3.) * 10.
+        v4y = -np.sin(m.pi/6.)*np.sin(m.pi/3.) * 10.
+        v4z = -np.cos(m.pi/6.) * 10.
+        v4 = self.create_vertex([v4x, v4y, v4z])                     
 
         f123 = self.create_face()
         f134 = self.create_face()
