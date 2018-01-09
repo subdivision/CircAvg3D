@@ -68,6 +68,13 @@ def create_tower4_mesh(id, avg_func):
     return orig_ctrl_mesh, file_prefix
 
 #-----------------------------------------------------------------------------
+def create_tower3_mesh(id, avg_func):
+    file_prefix = 'tower_3' + avg_fn_to_str(avg_func)
+    orig_ctrl_mesh, _ = create_tower4_mesh(id - 1, avg_func)
+    orig_ctrl_mesh = orig_ctrl_mesh.triangulize_quad_mesh()
+    return orig_ctrl_mesh, file_prefix
+
+#-----------------------------------------------------------------------------
 def create_cube4_mesh(id, avg_func):
     file_prefix = 'cube_4' + avg_fn_to_str(avg_func)
     orig_ctrl_mesh = DCtrlMesh(id, avg_func)
@@ -125,32 +132,38 @@ def srf_main():
     stl_file_name = 'fox.stl'
     #stl_file_name = 'bunny.stl'
     #stl_file_name = 'cube.stl'
-    #plot_debug = True
-    plot_debug = False
 
     #ref_method, ref_name = DCtrlMesh.refine_as_catmull_clark, 'cc_'
-    #ref_method, ref_name = DCtrlMesh.refine_as_kob4pt, 'kob4pt_'
+    ref_method, ref_name = DCtrlMesh.refine_as_kob4pt, 'kob4pt_'
     #ref_method, ref_name = DCtrlMesh.refine_as_butterfly, 'butterfly_'
-    ref_method, ref_name = DCtrlMesh.refine_as_loop, 'loop_'
+    #ref_method, ref_name = DCtrlMesh.refine_as_loop, 'loop_'
 
     res_file_suffix = ref_name + str(n_of_iterations) + 'iters.off'
 
+    #--- Circle Average Mesh ------------------------------
     #circ_avg_ctrl_mesh, circ_res_name = create_tower4_mesh(2, circle_avg_3D)
     #circ_avg_ctrl_mesh, circ_res_name = create_cube4_mesh(2, circle_avg_3D)
     #circ_avg_ctrl_mesh, circ_res_name = create_torus4_mesh(2, circle_avg_3D, init_vrts_torus)
-    #circ_avg_ctrl_mesh, circ_res_name = create_torus3_mesh(2, circle_avg_3D, init_vrts_torus)
-    #circ_avg_ctrl_mesh, circ_res_name = create_cube3_mesh(2, circle_avg_3D)
-    circ_avg_ctrl_mesh, circ_res_name = create_mesh3_stl_file(2, circle_avg_3D, stl_file_name)
     #circ_avg_ctrl_mesh, circ_res_name = create_mesh4_stl_file(2, circle_avg_3D, stl_file_name)
+    circ_avg_ctrl_mesh, circ_res_name = create_tetrahedron4_mesh(2, circle_avg_3D)
+
+    #circ_avg_ctrl_mesh, circ_res_name = create_tower3_mesh(2, circle_avg_3D)
+    #circ_avg_ctrl_mesh, circ_res_name = create_cube3_mesh(2, circle_avg_3D)
+    #circ_avg_ctrl_mesh, circ_res_name = create_torus3_mesh(2, circle_avg_3D, init_vrts_torus)
+    #circ_avg_ctrl_mesh, circ_res_name = create_mesh3_stl_file(2, circle_avg_3D, stl_file_name)
     #circ_avg_ctrl_mesh, circ_res_name = create_tetrahedron3_mesh(2, circle_avg_3D)
  
+    #--- Linear Average Mesh ------------------------------
     #lin_ctrl_mesh, lin_res_name = create_tower4_mesh(3, linear_avg)
     #lin_ctrl_mesh, lin_res_name = create_cube4_mesh(3, linear_avg)
     #lin_ctrl_mesh, lin_res_name = create_torus4_mesh(3, linear_avg, init_vrts_torus)
+    #lin_ctrl_mesh, lin_res_name = create_mesh4_stl_file(3, linear_avg, stl_file_name)
+    lin_ctrl_mesh, lin_res_name = create_tetrahedron4_mesh(3, linear_avg)
+
+    #lin_ctrl_mesh, lin_res_name = create_tower3_mesh(3, linear_avg)
     #lin_ctrl_mesh, lin_res_name = create_torus3_mesh(3, linear_avg, init_vrts_torus)
     #lin_ctrl_mesh, lin_res_name = create_cube3_mesh(3, linear_avg)
-    lin_ctrl_mesh, lin_res_name = create_mesh3_stl_file(3, linear_avg, stl_file_name)
-    #lin_ctrl_mesh, lin_res_name = create_mesh4_stl_file(3, linear_avg, stl_file_name)
+    #lin_ctrl_mesh, lin_res_name = create_mesh3_stl_file(3, linear_avg, stl_file_name)
     #lin_ctrl_mesh, lin_res_name = create_tetrahedron3_mesh(3, linear_avg)
 
     circ_res_name += res_file_suffix
@@ -159,23 +172,10 @@ def srf_main():
     for i in range(n_of_iterations):
         circ_avg_ctrl_mesh = ref_method(circ_avg_ctrl_mesh)
         lin_ctrl_mesh = ref_method(lin_ctrl_mesh)
-        #circ_avg_ctrl_mesh = circ_avg_ctrl_mesh.refine_by_interpolation(\
-        #    DCtrlMesh.get_edge_vertex_as_mid, 
-        #    DCtrlMesh.split_triang_face_as_butterfly)
-        #lin_ctrl_mesh = lin_ctrl_mesh.refine_by_interpolation(\
-        #    DCtrlMesh.get_edge_vertex_as_mid, 
-        #    DCtrlMesh.split_triang_face_as_butterfly)
        
     circ_avg_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + circ_res_name)
     lin_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + lin_res_name)
 
-    #lin_ctrl_mesh2, lin_res_name2 = create_tetrahedron3_mesh(4, linear_avg)
-    #lin_ctrl_mesh2, lin_res_name2 = create_cube3_mesh(4, linear_avg)
-    #lin_res_name2 = 'orig_mesh.off'
-    #lin_ctrl_mesh2.dump_obj_file(RES_PATH_PREFIX + lin_res_name2)
-
-    if plot_debug:
-        plot_results(lin_ctrl_mesh2, circ_avg_ctrl_mesh, None)
     
 #-----------------------------------------------------------------------------
 if __name__ == "__main__":

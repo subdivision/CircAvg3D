@@ -699,6 +699,31 @@ class DCtrlMesh(object):
         #self.set_naive_normals()
 
     #-------------------------------------------------------------------------
+    def triangulize_quad_mesh(self):
+        tri_mesh = DCtrlMesh(self.eid+1, self.averaging_fn)
+        tri_mesh.idgen = IDGenerator(self.idgen.curr + self.idgen.step)
+        vertices_2_edges = {}
+        old_vrtxs_2_new_vrtxs = {}
+        for face in self.f:
+            orig_vrtxs = face.get_vertices()
+            n = len(orig_vrtxs)
+            assert n == 4
+            new_vrtxs = []
+            for ov in orig_vrtxs:
+                new_vrtx = old_vrtxs_2_new_vrtxs.get(ov.eid, None)
+                if new_vrtx == None:
+                    new_vrtx = tri_mesh.create_vertex(ov.pt)
+                    new_vrtx.set_nr(ov.nr)
+                    old_vrtxs_2_new_vrtxs[ov.eid] = new_vrtx
+                new_vrtxs.append(new_vrtx)
+                
+            fv1 = [new_vrtxs[0], new_vrtxs[1], new_vrtxs[2]]
+            fv2 = [new_vrtxs[0], new_vrtxs[2], new_vrtxs[3]]
+            tri_mesh.produce_face(fv1, vertices_2_edges)
+            tri_mesh.produce_face(fv2, vertices_2_edges)
+        return tri_mesh
+
+    #-------------------------------------------------------------------------
     def refine_as_kob4pt(self):
         refined_mesh = self.refine_by_interpolation(
                           DCtrlMesh.split_edge_as_kob4pt, 
@@ -905,9 +930,6 @@ class DCtrlMesh(object):
         vrts = vert.get_neighbor_vertices()
         n = len(vrts)
         vrts.insert(0, vert)
-        #alpha = 3./8. + (3./8. + 0.25 * np.cos(2.*np.pi/n))**2
-        #weights = [(1. - alpha)/n]*n
-        #weights.append(alpha)
         if n > 3:
             beta = 3./(8.*n)
         else:
@@ -1110,10 +1132,9 @@ class DCtrlMesh(object):
 
     #-------------------------------------------------------------------------
     def split_edge_as_butterfly(self, edge):
+        #res_pt, res_norm = self.split_edge_as_butterfly_v1(edge)
+        #res_pt, res_norm = self.split_edge_as_butterfly_v2(edge)
         res_pt, res_norm = self.split_edge_as_butterfly_v3(edge)
-        #res_pt2, res_norm2 = self.split_edge_as_butterfly_v2(edge)
-        #res_pt, res_norm = self.average_vertices(0.5, res_pt1, res_pt2, 
-        #                                         res_norm1, res_norm2)
         return res_pt, res_norm
 
     #-------------------------------------------------------------------------
