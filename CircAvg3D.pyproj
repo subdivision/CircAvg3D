@@ -22,7 +22,7 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="AltAvg2D.py" />
+    <Compile Include="BSplineAvg2D.py" />
     <Compile Include="CircAvg3D.py" />
     <Compile Include="CSubd2D.py" />
     <Compile Include="CurvesMain.py">

@@ -337,9 +337,18 @@ class DCtrlMesh(object):
         new_face = self.create_face()
         self.compile_face(vertices, new_edges, new_face)
 
-    ##-------------------------------------------------------------------------
-    ## Evil!! Eats all the memory
-    def set_naive_normals(self):
+    #-------------------------------------------------------------------------
+    def init_normals(self, unit_vector):
+        for v in self.v:
+            v.set_nr(unit_vector)
+
+    #-------------------------------------------------------------------------
+    def set_naive_normals(self, weight = 1.0):
+        ''' For every vertex
+            Determine a naive normal with discrete Laplace-Beltrami operator.
+            Set the normal as a weighted average between the current and 
+            the naive.
+        '''
         for v in self.v:
             neighb = v.get_neighbor_vertices()
             n = len(neighb)
@@ -362,7 +371,11 @@ class DCtrlMesh(object):
             for i in range(n):
                 res_norm += norms[i] * (wghts[i] / vert_sum)
             res_norm /= np.linalg.norm(res_norm)
-            v.set_nr(-res_norm)
+            #@@TODO: why do we need to flip that?
+            res_norm = -res_norm
+            #@@TODO: it's not geodesic! It's linear.
+            res_norm = weight*res_norm + (1. - weight)*v.nr
+            v.set_nr(res_norm)
  
     #-------------------------------------------------------------------------
     def init_as_quad_cube(self, offset = 10.0):

@@ -11,19 +11,6 @@ from BezierAvg import *
 #from SmoothnessAnalysis import *
 
 #-----------------------------------------------------------------------------
-def sliding_circ_average_export(t0, t1, b_open, p0, p1, n0, n1):
-    q_pt = get_intersection_point(p0, p1, n0, n1)
-    r0 = get_dist( q_pt, p0)
-    r1 = get_dist( q_pt, p1)
-    res_radius = r0*t0 + r1 * t1
-    res_t = get_weighted_angle(t0, t1, n0, n1)
-    res_norm = np.array([M.cos(res_t), M.sin(res_t)])
-    res_pt = q_pt + res_norm * res_radius 
-    return res_pt, res_norm, res_pt, 0,0,0
-
-
-
-#-----------------------------------------------------------------------------
 def cheb_nodes(N, a, b):
     N = N - 2
     jj = 2.*np.arange(N) + 1
