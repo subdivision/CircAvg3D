@@ -130,37 +130,29 @@ def create_mesh4_stl_file(id, avg_func):
     return orig_ctrl_mesh, file_prefix
 
 #-----------------------------------------------------------------------------
-def get_initial_mesh():
+def get_initial_mesh(demo_mesh, b_quadr = True):
+    ''' 'tower', 'cube', 'torus', 'mesh', 'tetra'
+    '''
     n_of_verts_in_init_torus = 6
     stl_file_name = 'fox.stl'
     #stl_file_name = 'bunny.stl'
     #stl_file_name = 'cube.stl'
 
-    #--- Circle Average Mesh ------------------------------
-    circ_avg_ctrl_mesh, circ_res_name = create_tower4_mesh(2, circle_avg_3D)
-    #circ_avg_ctrl_mesh, circ_res_name = create_cube4_mesh(2, circle_avg_3D)
-    #circ_avg_ctrl_mesh, circ_res_name = create_torus4_mesh(2, circle_avg_3D)
-    #circ_avg_ctrl_mesh, circ_res_name = create_mesh4_stl_file(2, circle_avg_3D)
-    #circ_avg_ctrl_mesh, circ_res_name = create_tetrahedron4_mesh(2, circle_avg_3D)
+    demos = {('tower', True)  : create_tower4_mesh,
+             ('tower', False) : create_tower3_mesh,
+             ('cube',  True)  : create_cube4_mesh,
+             ('cube',  False) : create_cube4_mesh,
+             ('torus', True)  : create_torus4_mesh,
+             ('torus', False) : create_torus3_mesh,
+             ('mesh',  True)  : create_mesh4_stl_file,
+             ('mesh',  False) : create_mesh3_stl_file,
+             ('tetra', True)  : create_tetrahedron4_mesh,
+             ('tetra', False) : create_tetrahedron3_mesh}
 
-    #circ_avg_ctrl_mesh, circ_res_name = create_tower3_mesh(2, circle_avg_3D)
-    #circ_avg_ctrl_mesh, circ_res_name = create_cube3_mesh(2, circle_avg_3D)
-    #circ_avg_ctrl_mesh, circ_res_name = create_torus3_mesh(2, circle_avg_3D)
-    #circ_avg_ctrl_mesh, circ_res_name = create_mesh3_stl_file(2, circle_avg_3D)
-    #circ_avg_ctrl_mesh, circ_res_name = create_tetrahedron3_mesh(2, circle_avg_3D)
- 
-    #--- Linear Average Mesh ------------------------------
-    lin_ctrl_mesh, lin_res_name = create_tower4_mesh(3, linear_avg)
-    #lin_ctrl_mesh, lin_res_name = create_cube4_mesh(3, linear_avg)
-    #lin_ctrl_mesh, lin_res_name = create_torus4_mesh(3, linear_avg, init_vrts_torus)
-    #lin_ctrl_mesh, lin_res_name = create_mesh4_stl_file(3, linear_avg, stl_file_name)
-    #lin_ctrl_mesh, lin_res_name = create_tetrahedron4_mesh(3, linear_avg)
-
-    #lin_ctrl_mesh, lin_res_name = create_tower3_mesh(3, linear_avg)
-    #lin_ctrl_mesh, lin_res_name = create_torus3_mesh(3, linear_avg, init_vrts_torus)
-    #lin_ctrl_mesh, lin_res_name = create_cube3_mesh(3, linear_avg)
-    #lin_ctrl_mesh, lin_res_name = create_mesh3_stl_file(3, linear_avg, stl_file_name)
-    #lin_ctrl_mesh, lin_res_name = create_tetrahedron3_mesh(3, linear_avg)
+    circ_avg_ctrl_mesh, circ_res_name = \
+        demos[(demo_mesh, b_quadr)](2, circle_avg_3D)
+    lin_ctrl_mesh, lin_res_name = \
+        demos[(demo_mesh, b_quadr)](3, linear_avg)
 
     return circ_avg_ctrl_mesh, circ_res_name, lin_ctrl_mesh, lin_res_name 
 #-----------------------------------------------------------------------------
@@ -174,7 +166,7 @@ def srf_main():
 
     res_file_suffix = ref_name + str(n_of_iterations) + 'iters.off'
     circ_avg_ctrl_mesh, circ_res_name, \
-        lin_ctrl_mesh, lin_res_name = get_initial_mesh()
+        lin_ctrl_mesh, lin_res_name = get_initial_mesh('cube', True)
 
     circ_res_name += res_file_suffix
     lin_res_name += res_file_suffix
@@ -189,15 +181,16 @@ def srf_main():
     
 #-----------------------------------------------------------------------------
 def rotate_normals():
-    n_of_iterations = 3
+    n_of_iterations = 4
     #ref_method, ref_name = DCtrlMesh.refine_as_catmull_clark, 'cc_'
     ref_method, ref_name = DCtrlMesh.refine_as_kob4pt, 'kob4pt_'
     #ref_method, ref_name = DCtrlMesh.refine_as_butterfly, 'butterfly_'
     #ref_method, ref_name = DCtrlMesh.refine_as_loop, 'loop_'
 
-    for w in np.linspace(0, 1, 6):
-        circ_avg_ctrl_mesh, circ_res_name, _, _ = get_initial_mesh()
-    
+    for w in np.linspace(0, 1, 11):
+        circ_avg_ctrl_mesh, circ_res_name, _, _ = \
+            get_initial_mesh('cube', True)
+        #circ_avg_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + 'cube4.off')
         circ_avg_ctrl_mesh.init_normals(np.array([1., 1., 1.]))
         circ_avg_ctrl_mesh.set_naive_normals(w)
 
