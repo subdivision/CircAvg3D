@@ -97,6 +97,26 @@ class DVertex(DElement):
                 break
         return result
 
+    #-------------------------------------------------------------------------
+    def init_deriv_dirs(self):
+        self.deriv_dirs = []
+        nei_edges = self.get_edges()
+        rec_idx = -1
+        rec_ratio = 0.
+        i = 0
+        for e in nei_edges:
+            curr_vec = e.get_as_vec_from(self)
+            curr_length = np.linalg.norm(curr_vec)
+            curr_delta_length = np.dot(self.nr, curr_vec)
+            delta_vec = curr_delta_length * self.nr
+            result_vec = curr_vec - delta_vec
+            res_length = np.linalg.norm(result_vec)
+            curr_ratio = curr_length / res_length
+            if np.abs(1. - curr_ratio) < np.abs(1. - rec_ratio):
+                rec_idx = i
+                rec_ratio = curr_ratio
+            i += 1
+
 #=============================================================================
 class DEdge(DElement):
     def __init__(self, eid = -1):
@@ -119,6 +139,11 @@ class DEdge(DElement):
         return self.he.twin.face if self.he.face == neighb_face  \
                                  else self.he.face
 
+    def get_other_vertex(self, end_vrtx):
+        assert self.he.vert == end_vrtx or self.he.twin.vert == end_vrtx
+        return self.he.twin.vert if self.he.vert == end_vrtx  \
+                                 else self.he.vert
+
     def nullify_face_hedge(self, face):
         victim_hedge = self.get_face_hedge(face)
         if victim_hedge.vert.he == victim_hedge:
@@ -129,6 +154,19 @@ class DEdge(DElement):
             self.he = victim_hedge.twin
         victim_hedge.twin.twin = None
         del victim_hedge
+
+    def get_as_vec_from(self, vert):
+        other = self.get_other_vertex(vert)
+        return other.pt -  vert.pt
+
+    def get_dehidral_angle(self):
+        left_face = self.he.face
+        right_face = self.he.twin.face 
+        norm_left = left_face.get_face_normal(self.he)
+        norm_right = right_face.get_face_normal(self.he.twin)
+        cos_gamma = np.dot(norm_left, norm_right)
+        gamma = np.arccos(cos_gamma)
+        return gamma
 
 #=============================================================================
 class DFace(DElement):
@@ -212,6 +250,26 @@ class DFace(DElement):
         curr_edges = self.get_edges()
         assert len(curr_edges) == n, 'Different number of edges' 
 
+    #-------------------------------------------------------------------------
+    def get_face_normal(self, he):
+        n = len(self.get_vertices())
+        edge_der = he.edge.get_as_vec_from(he.vert)
+        edge_der /= np.linalg.norm(edge_der)
+        if 4 == n:
+            v0 = he.vert.pt
+            v1 = he.next.vert.pt
+            v2 = he.next.next.vert.pt
+            v3 = he.prev.vert.pt
+            cbd = (v3+v2)/2. - (v0+v1)/2.
+        elif 3 == n:
+            v1 = he.next.vert.pt
+            v2 = he.next.next.vert.pt
+            cbd = v2-v1
+        cbd /= np.linalg.norm(cbd)
+        res_norm = np.cross(edge_der, cbd)
+        res_norm /= np.linalg.norm(res_norm)
+        return res_norm
+
 #=============================================================================
 class DHalfEdge(object):
     def __init__(self):
@@ -294,6 +352,16 @@ class DCtrlMesh(object):
             print '[{0:3d}] {1}->{2}\n Faces: [{3}, {4}]'.format(e.eid, 
                     e.he.vert.eid, e.he.twin.vert.eid,
                     e.he.face.eid, e.he.twin.face.eid)
+
+    #-------------------------------------------------------------------------
+    def get_dehidral_angle_stats(self):
+        all_angles = []
+        for e in self.e:
+            all_angles.append(e.get_dehidral_angle())
+        max_ang = max(all_angles)
+        min_ang = min(all_angles)
+        mean_ang = np.mean(all_angles)
+        return min_ang, max_ang, mean_ang
 
     #-------------------------------------------------------------------------
     def create_vertex(self, coords):
@@ -1369,5 +1437,55 @@ class DCtrlMesh(object):
         self.compile_face([v1, v3, v4], [e13, e34, e14], f134)
         self.compile_face([v1, v4, v2], [e14, e24, e12], f142)
         self.compile_face([v2, v4, v3], [e24, e34, e23], f243)
+
+    #-------------------------------------------------------------------------
+    def refine_by_bspl_interpolation(self):
+        refined_mesh = DCtrlMesh(self.eid+1, None)
+        refined_mesh.idgen = IDGenerator(self.idgen.curr + self.idgen.step)
+        old_edges_2_new_verts = {}
+        old_edges_2_new_edges = {}
+        old_verts_2_new_verts = {}
+
+        for vert in self.v:
+            vert.init_deriv_dirs()
+            preserved_vert = refined_mesh.create_vertex(vert.pt)
+            preserved_vert.set_deriv_dirs(vert.deriv_dirs)
+            preserved_vert.set_nr(vert.nr)
+            old_verts_2_new_verts[vert.eid] = preserved_vert
+
+        for edge in self.e:
+            edge.init_bspl_crv()
+            avg_pt, avg_nr = eval_bspl_crv(0.5, edge.bspl_crv)
+            avg_vert = refined_mesh.create_vertex(avg_pt)
+            avg_vert.set_nr(avg_nr)
+            old_edges_2_new_verts[edge.eid] = avg_vert
+            new_edge1 = refined_mesh.create_edge()
+            new_edge2 = refined_mesh.create_edge()
+            old_edges_2_new_edges[(edge.eid, edge.he.vert.eid)] = new_edge1
+            old_edges_2_new_edges[(edge.eid, edge.he.twin.vert.eid)] = new_edge2
+
+        for face in self.f:
+            cntr_pr, cntr_norm = face.eval_bspl_srf(0.5, 0.5)
+            cntr_vert = refined_mesh.create_vertex(cntr_pt)
+            cntr_vert.set_nr(cntr_norm)
+            for i in [0,1,2,3]:
+                new_face = refined_mesh.create_face()
+                inner_prev_edge = new_inner_edges[(i+3)%4]
+                inner_curr_edge = new_inner_edges[i]
+                new_face_verts = [old_verts_2_new_verts[old_verts[i].eid], 
+                                  new_mid_vertices[i], 
+                                  cntr_vert, 
+                                  new_mid_vertices[(i+3)%4]]
+                new_face_edges = [old_edges_2_new_edges[(old_edges[i].eid, 
+                                                         old_verts[i].eid)],
+                                  inner_curr_edge,
+                                  inner_prev_edge,
+                                  old_edges_2_new_edges[(old_edges[(i+3)%4].eid, 
+                                                         old_verts[i].eid)]]
+                refined_mesh.compile_face(new_face_verts, 
+                                          new_face_edges, 
+                                          new_face)            
+            return refined_mesh
+
     
 #============================== END OF FILE ==================================

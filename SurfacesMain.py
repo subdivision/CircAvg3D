@@ -68,6 +68,29 @@ def create_tower4_mesh(id, avg_func):
     return orig_ctrl_mesh, file_prefix
 
 #-----------------------------------------------------------------------------
+def create_tube4_mesh(id, avg_func):
+    file_prefix = 'tube_4' + avg_fn_to_str(avg_func)
+    orig_ctrl_mesh = DCtrlMesh(id, avg_func)
+    orig_ctrl_mesh.init_as_quad_cube(10.)
+    orig_ctrl_mesh.extrude_face(9, 20.)
+    dux = 20.
+    duy = 20.
+    duz = 120.
+    orig_ctrl_mesh.id2obj[27].set_pt(np.array([ dux,  duy, duz]))
+    orig_ctrl_mesh.id2obj[31].set_pt(np.array([-dux,  duy, duz]))
+    orig_ctrl_mesh.id2obj[35].set_pt(np.array([-dux, -duy, duz]))
+    orig_ctrl_mesh.id2obj[39].set_pt(np.array([ dux, -duy, duz]))
+    dux = 20.
+    duy = 20.
+    duz = 5.
+    orig_ctrl_mesh.id2obj[5].set_pt(np.array([ dux,  duy, -duz]))
+    orig_ctrl_mesh.id2obj[6].set_pt(np.array([ dux, -duy, -duz]))
+    orig_ctrl_mesh.id2obj[7].set_pt(np.array([-dux, -duy, -duz]))
+    orig_ctrl_mesh.id2obj[8].set_pt(np.array([-dux,  duy, -duz]))
+
+    orig_ctrl_mesh.set_naive_normals()
+    return orig_ctrl_mesh, file_prefix
+#-----------------------------------------------------------------------------
 def create_tower3_mesh(id, avg_func):
     file_prefix = 'tower_3' + avg_fn_to_str(avg_func)
     orig_ctrl_mesh, _ = create_tower4_mesh(id - 1, avg_func)
@@ -144,6 +167,7 @@ def get_initial_mesh(demo_mesh, b_quadr = True):
              ('cube',  False) : create_cube4_mesh,
              ('torus', True)  : create_torus4_mesh,
              ('torus', False) : create_torus3_mesh,
+             ('tube',  True)  : create_tube4_mesh,
              ('mesh',  True)  : create_mesh4_stl_file,
              ('mesh',  False) : create_mesh3_stl_file,
              ('tetra', True)  : create_tetrahedron4_mesh,
@@ -160,13 +184,15 @@ def srf_main():
     n_of_iterations = 3
 
     #ref_method, ref_name = DCtrlMesh.refine_as_catmull_clark, 'cc_'
-    #ref_method, ref_name = DCtrlMesh.refine_as_kob4pt, 'kob4pt_'
-    ref_method, ref_name = DCtrlMesh.refine_as_butterfly, 'butterfly_'
+    ref_method, ref_name = DCtrlMesh.refine_as_kob4pt, 'kob4pt_'
+    #ref_method, ref_name = DCtrlMesh.refine_as_butterfly, 'butterfly_'
     #ref_method, ref_name = DCtrlMesh.refine_as_loop, 'loop_'
 
     res_file_suffix = ref_name + str(n_of_iterations) + 'iters.off'
     circ_avg_ctrl_mesh, circ_res_name, \
-        lin_ctrl_mesh, lin_res_name = get_initial_mesh('cube', True)
+        lin_ctrl_mesh, lin_res_name = get_initial_mesh('tube', True)
+
+    circ_avg_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + 'tube_orig.off')
 
     circ_res_name += res_file_suffix
     lin_res_name += res_file_suffix
@@ -174,6 +200,8 @@ def srf_main():
     for i in range(n_of_iterations):
         circ_avg_ctrl_mesh = ref_method(circ_avg_ctrl_mesh)
         lin_ctrl_mesh = ref_method(lin_ctrl_mesh)
+        print 'CAvg mesh stats', str(circ_avg_ctrl_mesh.get_dehidral_angle_stats())
+        print 'LinA mesh stats', str(lin_ctrl_mesh.get_dehidral_angle_stats())
        
     circ_avg_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + circ_res_name)
     lin_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + lin_res_name)
@@ -182,8 +210,8 @@ def srf_main():
 #-----------------------------------------------------------------------------
 def rotate_normals():
     n_of_iterations = 4
-    #ref_method, ref_name = DCtrlMesh.refine_as_catmull_clark, 'cc_'
-    ref_method, ref_name = DCtrlMesh.refine_as_kob4pt, 'kob4pt_'
+    ref_method, ref_name = DCtrlMesh.refine_as_catmull_clark, 'cc_'
+    #ref_method, ref_name = DCtrlMesh.refine_as_kob4pt, 'kob4pt_'
     #ref_method, ref_name = DCtrlMesh.refine_as_butterfly, 'butterfly_'
     #ref_method, ref_name = DCtrlMesh.refine_as_loop, 'loop_'
 
@@ -206,6 +234,6 @@ def rotate_normals():
     
 #-----------------------------------------------------------------------------
 if __name__ == "__main__":
-    #srf_main()
-    rotate_normals()
+    srf_main()
+    #rotate_normals()
 #============================= END OF FILE ===================================
