@@ -181,7 +181,7 @@ def get_initial_mesh(demo_mesh, b_quadr = True):
     return circ_avg_ctrl_mesh, circ_res_name, lin_ctrl_mesh, lin_res_name 
 #-----------------------------------------------------------------------------
 def srf_main():
-    n_of_iterations = 3
+    n_of_iterations = 2
 
     #ref_method, ref_name = DCtrlMesh.refine_as_catmull_clark, 'cc_'
     ref_method, ref_name = DCtrlMesh.refine_as_kob4pt, 'kob4pt_'
@@ -200,8 +200,12 @@ def srf_main():
     for i in range(n_of_iterations):
         circ_avg_ctrl_mesh = ref_method(circ_avg_ctrl_mesh)
         lin_ctrl_mesh = ref_method(lin_ctrl_mesh)
-        print 'CAvg mesh stats', str(circ_avg_ctrl_mesh.get_dehidral_angle_stats())
-        print 'LinA mesh stats', str(lin_ctrl_mesh.get_dehidral_angle_stats())
+        print 'CAvg dehidral', str(circ_avg_ctrl_mesh.get_dehidral_angle_stats()),\
+            str(circ_avg_ctrl_mesh.get_gaus_curvature_stats())
+        print 'LinA mesh stats', str(lin_ctrl_mesh.get_dehidral_angle_stats()),\
+            str(lin_ctrl_mesh.get_gaus_curvature_stats())
+        print '----'
+
        
     circ_avg_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + circ_res_name)
     lin_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + lin_res_name)

@@ -117,6 +117,18 @@ class DVertex(DElement):
                 rec_ratio = curr_ratio
             i += 1
 
+    #-------------------------------------------------------------------------
+    def get_gaussian_curvature(self):
+        nei_faces = self.get_faces()
+        corner_angles = 0.
+        cell_area = 0.
+        for f in nei_faces:
+            ar, an = f.get_triang_area_and_corner_angle(self)
+            corner_angles += an
+            cell_area += ar
+        gaus_curv = (2. * np.pi - corner_angles)/cell_area
+        return gaus_curv
+
 #=============================================================================
 class DEdge(DElement):
     def __init__(self, eid = -1):
@@ -217,6 +229,18 @@ class DFace(DElement):
             if curr_he == self.he:
                 break
         return None
+
+    #-------------------------------------------------------------------------
+    def get_vertex_hedge(self, vrtx):
+        curr_he = self.he
+        while True:
+            if curr_he.vert == vrtx:
+                return curr_he
+            curr_he = curr_he.next
+            if curr_he == self.he:
+                break
+        return None
+
     #-------------------------------------------------------------------------
     def flip_orientation_in_triang_face(self, anchor_hedge):
         v0 = anchor_hedge.next.vert
@@ -269,6 +293,22 @@ class DFace(DElement):
         res_norm = np.cross(edge_der, cbd)
         res_norm /= np.linalg.norm(res_norm)
         return res_norm
+
+    #-------------------------------------------------------------------------
+    def get_triang_area_and_corner_angle(self, vrtx):
+        he = self.get_vertex_hedge(vrtx)
+        v1 = he.dest()
+        v2 = he.prev.vert
+        a = np.linalg.norm(vrtx.pt - v1.pt)
+        b = np.linalg.norm(vrtx.pt - v2.pt)
+        c = np.linalg.norm(v2.pt - v1.pt)
+        p  = (a + b + c)/2.
+        ar = (p * (p-a)*(p-b)*(p-c) )**0.5
+        dir1 = (vrtx.pt - v1.pt) / np.linalg.norm(vrtx.pt - v1.pt)
+        dir2 = (vrtx.pt - v2.pt) / np.linalg.norm(vrtx.pt - v2.pt)
+        cos_ang = np.dot(dir1, dir2)
+        an = np.arccos(cos_ang)
+        return ar/3., an
 
 #=============================================================================
 class DHalfEdge(object):
@@ -362,6 +402,16 @@ class DCtrlMesh(object):
         min_ang = min(all_angles)
         mean_ang = np.mean(all_angles)
         return min_ang, max_ang, mean_ang
+
+    #-------------------------------------------------------------------------
+    def get_gaus_curvature_stats(self):
+        all_curvs = []
+        for v in self.v:
+            all_curvs.append(v.get_gaussian_curvature())
+        max_crv = max(all_curvs)
+        min_crv = min(all_curvs)
+        mean_crv = np.mean(all_curvs)
+        return min_crv, max_crv, mean_crv
 
     #-------------------------------------------------------------------------
     def create_vertex(self, coords):

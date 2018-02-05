@@ -128,7 +128,7 @@ def circle_avg_3D(t0, t1, b_open, p0, p1, n0, n1):
     y_axis = np.array([0.,1.,0.])
     new_z = np.cross(n0, n1)
     if vec_eeq(new_z, np.array([0.,0.,0.])):# and not vec_eeq(n0, n1):
-        print 'Num inst.'
+        #print 'Num inst.'
         return linear_avg(t0, t1, b_open, p0, p1, n0, n1)
     new_z /= np.linalg.norm(new_z)
     new_y = np.cross(new_z, x_axis)
