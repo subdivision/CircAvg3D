@@ -181,7 +181,7 @@ def get_initial_mesh(demo_mesh, b_quadr = True):
     return circ_avg_ctrl_mesh, circ_res_name, lin_ctrl_mesh, lin_res_name 
 #-----------------------------------------------------------------------------
 def srf_main():
-    n_of_iterations = 2
+    n_of_iterations = 4
 
     #ref_method, ref_name = DCtrlMesh.refine_as_catmull_clark, 'cc_'
     ref_method, ref_name = DCtrlMesh.refine_as_kob4pt, 'kob4pt_'
@@ -192,7 +192,7 @@ def srf_main():
     circ_avg_ctrl_mesh, circ_res_name, \
         lin_ctrl_mesh, lin_res_name = get_initial_mesh('tube', True)
 
-    circ_avg_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + 'tube_orig.off')
+    orig_ctrl_mesh, _, _, _ = get_initial_mesh('tube', True)
 
     circ_res_name += res_file_suffix
     lin_res_name += res_file_suffix
@@ -200,11 +200,15 @@ def srf_main():
     for i in range(n_of_iterations):
         circ_avg_ctrl_mesh = ref_method(circ_avg_ctrl_mesh)
         lin_ctrl_mesh = ref_method(lin_ctrl_mesh)
-        print 'CAvg dehidral', str(circ_avg_ctrl_mesh.get_dehidral_angle_stats()),\
-            str(circ_avg_ctrl_mesh.get_gaus_curvature_stats())
-        print 'LinA mesh stats', str(lin_ctrl_mesh.get_dehidral_angle_stats()),\
-            str(lin_ctrl_mesh.get_gaus_curvature_stats())
-        print '----'
+        print '==========='
+        print 'CAvg'
+        print str(circ_avg_ctrl_mesh.get_dehidral_angle_stats())
+        print str(circ_avg_ctrl_mesh.get_gaus_curvature_stats())
+        print str(circ_avg_ctrl_mesh.get_dist_stats(orig_ctrl_mesh))
+        print 'LinA'
+        print str(lin_ctrl_mesh.get_dehidral_angle_stats())
+        print str(lin_ctrl_mesh.get_gaus_curvature_stats())
+        print str(lin_ctrl_mesh.get_dist_stats(orig_ctrl_mesh))
 
        
     circ_avg_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + circ_res_name)

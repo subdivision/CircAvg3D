@@ -1,6 +1,7 @@
 import numpy as np
 import math as m
 from stl import mesh
+from CircAvg3D import *
 
 #-----------------------------------------------------------------------------
 def vec_almost_zero(v):
@@ -128,6 +129,21 @@ class DVertex(DElement):
             cell_area += ar
         gaus_curv = (2. * np.pi - corner_angles)/cell_area
         return gaus_curv
+
+    #-------------------------------------------------------------------------
+    def dist_to_face(self, face):
+        ''' Not implemented!!!
+        '''
+        vrtx = face.get_vertices()
+        n = len(vrtx)
+        dist = 0.0
+        if 3 == n:
+            dist = dist_to_plane(vrtx[0].pt, vrtx[1].pt, vrtx[2].pt, self.pt)
+        elif 4 == n:
+            dist = max(dist_to_plane(vrtx[0].pt, vrtx[1].pt, vrtx[2].pt, self.pt),
+                       dist_to_plane(vrtx[2].pt, vrtx[3].pt, vrtx[0].pt, self.pt))
+        return dist
+
 
 #=============================================================================
 class DEdge(DElement):
@@ -412,6 +428,29 @@ class DCtrlMesh(object):
         min_crv = min(all_curvs)
         mean_crv = np.mean(all_curvs)
         return min_crv, max_crv, mean_crv
+
+    #-------------------------------------------------------------------------
+    def get_dist_stats(self, other):
+        self_to_other_dist = []
+        for v1 in self.v:
+            curr_self_to_other_dist = []
+            for v2 in other.v:
+                curr_self_to_other_dist.append(np.linalg.norm(v1.pt - v2.pt))
+            self_to_other_dist.append(min(curr_self_to_other_dist))
+
+        other_to_self_dist = []
+        for v1 in other.v:
+            curr_other_to_self_dist = []
+            for v2 in self.v:
+                curr_other_to_self_dist.append(np.linalg.norm(v1.pt - v2.pt))
+            other_to_self_dist.append(min(curr_other_to_self_dist))
+
+        max_dist = max(max(self_to_other_dist), max(other_to_self_dist))
+        min_dist = min(min(self_to_other_dist), min(other_to_self_dist))
+        mean_dist = 0.5 * (np.mean(self_to_other_dist) + \
+                           np.mean(other_to_self_dist))
+
+        return min_dist, max_dist, mean_dist
 
     #-------------------------------------------------------------------------
     def create_vertex(self, coords):

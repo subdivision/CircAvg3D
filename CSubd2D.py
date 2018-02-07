@@ -89,6 +89,12 @@ def get_halfplane(a,b,c):
     return n_res
 
 #----------------------------------------------------------------------------
+def is_inside_triangle(p0, p1, p2, q):
+    return get_halfplane(p0, p1, q) \
+            == get_halfplane(p1, p2, q) \
+            == get_halfplane(p2, p0, q)
+
+#----------------------------------------------------------------------------
 def get_intersection_point(p1, p2, n1, n2):
     p3 = p1 + n1
     p4 = p2 + n2

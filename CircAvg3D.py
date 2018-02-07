@@ -123,6 +123,47 @@ def get_vect_in_coord_sys(v, transform_matrix):
     return res
 
 #-----------------------------------------------------------------------------
+def dist_to_plane(p0, p1, p2, q):
+    v0 = p1 - p0
+    v1 = p2 - p0
+    v0 /= np.linalg.norm(v0)
+    v1 /= np.linalg.norm(v1)
+    plane_norm = np.cross(v0,v1)
+    plane_norm /= np.linalg.norm(plane_norm)
+    q_on_plane = project_point_to_plane(p0, plane_norm, q)
+
+    x_axis = np.array([1.,0.,0.])
+    y_axis = np.array([0.,1.,0.])
+    new_y = np.cross(plane_norm, x_axis)
+    new_y /= np.linalg.norm(new_y)
+    new_x = np.cross(new_y, plane_norm)
+    new_x /= np.linalg.norm(new_x)
+    new_z = plane_norm
+
+    direct_transf = np.array([[new_x[0], new_x[1], new_x[2]],
+                              [new_y[0], new_y[1], new_y[2]],
+                              [new_z[0], new_z[1], new_z[2]]])
+    new_p0 = get_vect_in_coord_sys(p0, direct_transf)
+    new_p1 = get_vect_in_coord_sys(p1, direct_transf)
+    new_p2 = get_vect_in_coord_sys(p2, direct_transf)
+    new_q  = get_vect_in_coord_sys(q_on_plane, direct_transf)
+
+    p0_2D = np.array([new_p0[0], new_p0[1]])
+    p1_2D = np.array([new_p1[0], new_p1[1]])
+    p2_2D = np.array([new_p2[0], new_p2[1]])
+    q_2D  = np.array([new_q[0],  new_q[1]])
+    b_inside = is_inside_triangle(p0_2D, p1_2D, p2_2D, q_2D)
+    #if not b_inside:
+    #    q_tag_2D = get_nearest_pt_on_triangle(p0_2D, p1_2D, p2_2D, q_2D)
+    #    back_transf = np.linalg.inv(direct_transf)
+    #    q_tag_on_plane = get_vect_in_coord_sys(q_tag_2D, back_transf)
+    #    dist_to_plane = np.abs(np.linalg.norm(q_tag_on_plane - q))
+    #else:
+    dist_to_plane = np.abs(np.linalg.norm(q_on_plane - q))
+
+    return dist_to_plane
+
+#-----------------------------------------------------------------------------
 def circle_avg_3D(t0, t1, b_open, p0, p1, n0, n1):
     x_axis = np.array([1.,0.,0.])
     y_axis = np.array([0.,1.,0.])
