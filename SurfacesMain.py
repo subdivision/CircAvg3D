@@ -90,6 +90,14 @@ def create_tube4_mesh(id, avg_func):
 
     orig_ctrl_mesh.set_naive_normals()
     return orig_ctrl_mesh, file_prefix
+
+#-----------------------------------------------------------------------------
+def create_tube3_mesh(id, avg_func):
+    file_prefix = 'tube_3' + avg_fn_to_str(avg_func)
+    orig_ctrl_mesh, _ = create_tube4_mesh(id, avg_func)
+    orig_ctrl_mesh = orig_ctrl_mesh.triangulize_quad_mesh()
+    return orig_ctrl_mesh, file_prefix
+
 #-----------------------------------------------------------------------------
 def create_tower3_mesh(id, avg_func):
     file_prefix = 'tower_3' + avg_fn_to_str(avg_func)
@@ -168,6 +176,7 @@ def get_initial_mesh(demo_mesh, b_quadr = True):
              ('torus', True)  : create_torus4_mesh,
              ('torus', False) : create_torus3_mesh,
              ('tube',  True)  : create_tube4_mesh,
+             ('tube',  False) : create_tube3_mesh,
              ('mesh',  True)  : create_mesh4_stl_file,
              ('mesh',  False) : create_mesh3_stl_file,
              ('tetra', True)  : create_tetrahedron4_mesh,
@@ -183,16 +192,17 @@ def get_initial_mesh(demo_mesh, b_quadr = True):
 def srf_main():
     n_of_iterations = 4
 
-    #ref_method, ref_name = DCtrlMesh.refine_as_catmull_clark, 'cc_'
-    ref_method, ref_name = DCtrlMesh.refine_as_kob4pt, 'kob4pt_'
-    #ref_method, ref_name = DCtrlMesh.refine_as_butterfly, 'butterfly_'
-    #ref_method, ref_name = DCtrlMesh.refine_as_loop, 'loop_'
+    #ref_method, ref_name, b_quad = DCtrlMesh.refine_as_catmull_clark, 'cc_', True
+    #ref_method, ref_name, b_quad = DCtrlMesh.refine_as_kob4pt, 'kob4pt_', True
+    ref_method, ref_name, b_quad = DCtrlMesh.refine_as_butterfly, 'butterfly_', False
+    #ref_method, ref_name, b_quad = DCtrlMesh.refine_as_loop, 'loop_', False
 
     res_file_suffix = ref_name + str(n_of_iterations) + 'iters.off'
     circ_avg_ctrl_mesh, circ_res_name, \
-        lin_ctrl_mesh, lin_res_name = get_initial_mesh('tube', True)
+        lin_ctrl_mesh, lin_res_name = get_initial_mesh('tube', b_quad)
 
-    orig_ctrl_mesh, _, _, _ = get_initial_mesh('tube', True)
+    orig_ctrl_mesh, _, _, _ = get_initial_mesh('tube', b_quad)
+    orig_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + 'tube3.off')
 
     circ_res_name += res_file_suffix
     lin_res_name += res_file_suffix
