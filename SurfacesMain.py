@@ -140,9 +140,9 @@ def create_torus3_mesh(id, avg_func):
 #-----------------------------------------------------------------------------
 def create_mesh3_stl_file(id, avg_func):
     global stl_file_name
-    file_prefix = file_name + '_3' + avg_fn_to_str(avg_func)
+    file_prefix = stl_file_name + '_3' + avg_fn_to_str(avg_func)
     orig_ctrl_mesh = DCtrlMesh(id, avg_func)
-    inp_file = INP_PATH_PREFIX + file_name
+    inp_file = INP_PATH_PREFIX + stl_file_name
     orig_ctrl_mesh.init_as_triang_mesh_stl_file(inp_file)
     orig_ctrl_mesh.set_naive_normals()
     return orig_ctrl_mesh, file_prefix
@@ -150,9 +150,9 @@ def create_mesh3_stl_file(id, avg_func):
 #-----------------------------------------------------------------------------
 def create_mesh4_stl_file(id, avg_func):
     global stl_file_name
-    file_prefix = file_name + '_4' + avg_fn_to_str(avg_func)
+    file_prefix = stl_file_name + '_4' + avg_fn_to_str(avg_func)
     orig_ctrl_mesh = DCtrlMesh(id, avg_func)
-    inp_file = INP_PATH_PREFIX + file_name
+    inp_file = INP_PATH_PREFIX + stl_file_name
     orig_ctrl_mesh.init_as_triang_mesh_stl_file(inp_file)
     orig_ctrl_mesh = orig_ctrl_mesh.refine_as_catmull_clark(\
         get_edge_vertex_func = DCtrlMesh.get_edge_vertex_as_mid,
@@ -162,8 +162,9 @@ def create_mesh4_stl_file(id, avg_func):
 
 #-----------------------------------------------------------------------------
 def get_initial_mesh(demo_mesh, b_quadr = True):
-    ''' 'tower', 'cube', 'torus', 'mesh', 'tetra'
+    ''' 'tower', 'cube', 'torus', 'tube', 'mesh', 'tetra'
     '''
+    global stl_file_name
     n_of_verts_in_init_torus = 6
     stl_file_name = 'fox.stl'
     #stl_file_name = 'bunny.stl'
@@ -190,19 +191,20 @@ def get_initial_mesh(demo_mesh, b_quadr = True):
     return circ_avg_ctrl_mesh, circ_res_name, lin_ctrl_mesh, lin_res_name 
 #-----------------------------------------------------------------------------
 def srf_main():
-    n_of_iterations = 4
+    n_of_iterations = 3
 
     #ref_method, ref_name, b_quad = DCtrlMesh.refine_as_catmull_clark, 'cc_', True
     #ref_method, ref_name, b_quad = DCtrlMesh.refine_as_kob4pt, 'kob4pt_', True
     ref_method, ref_name, b_quad = DCtrlMesh.refine_as_butterfly, 'butterfly_', False
     #ref_method, ref_name, b_quad = DCtrlMesh.refine_as_loop, 'loop_', False
 
+    example_name = 'tetra'
     res_file_suffix = ref_name + str(n_of_iterations) + 'iters.off'
     circ_avg_ctrl_mesh, circ_res_name, \
-        lin_ctrl_mesh, lin_res_name = get_initial_mesh('tube', b_quad)
+        lin_ctrl_mesh, lin_res_name = get_initial_mesh(example_name, b_quad)
 
-    orig_ctrl_mesh, _, _, _ = get_initial_mesh('tube', b_quad)
-    orig_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + 'tube3.off')
+    orig_ctrl_mesh, _, _, _ = get_initial_mesh(example_name, b_quad)
+    #orig_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + 'fox.off')
 
     circ_res_name += res_file_suffix
     lin_res_name += res_file_suffix
@@ -210,20 +212,19 @@ def srf_main():
     for i in range(n_of_iterations):
         circ_avg_ctrl_mesh = ref_method(circ_avg_ctrl_mesh)
         lin_ctrl_mesh = ref_method(lin_ctrl_mesh)
-        print '==========='
-        print 'CAvg'
-        print str(circ_avg_ctrl_mesh.get_dehidral_angle_stats())
-        print str(circ_avg_ctrl_mesh.get_gaus_curvature_stats())
-        print str(circ_avg_ctrl_mesh.get_dist_stats(orig_ctrl_mesh))
-        print 'LinA'
-        print str(lin_ctrl_mesh.get_dehidral_angle_stats())
-        print str(lin_ctrl_mesh.get_gaus_curvature_stats())
-        print str(lin_ctrl_mesh.get_dist_stats(orig_ctrl_mesh))
 
-       
+    cmda, ccad, cmmd =  circ_avg_ctrl_mesh.get_dehidral_angle_stats()[1],\
+                        circ_avg_ctrl_mesh.get_gaus_curvature_abs_delta(),\
+                        circ_avg_ctrl_mesh.get_mesh_to_mesh_dist(orig_ctrl_mesh)
+    lmda, lcad, lmmd =  lin_ctrl_mesh.get_dehidral_angle_stats()[1],\
+                        lin_ctrl_mesh.get_gaus_curvature_abs_delta(),\
+                        lin_ctrl_mesh.get_mesh_to_mesh_dist(orig_ctrl_mesh)
+    print 'Linear {:1.5f} & {:1.5f} & {:1.5f}'.format(lmda, lcad, lmmd)
+    print 'Circle {:1.5f} & {:1.5f} & {:1.5f}'.format(cmda, ccad, cmmd)
+    #plot_results(orig_ctrl_mesh, circ_avg_ctrl_mesh, lin_ctrl_mesh)   
     circ_avg_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + circ_res_name)
     lin_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + lin_res_name)
-
+    
     
 #-----------------------------------------------------------------------------
 def rotate_normals():

@@ -188,13 +188,16 @@ class DEdge(DElement):
         return other.pt -  vert.pt
 
     def get_dehidral_angle(self):
+        np.seterr(all='raise')
         left_face = self.he.face
         right_face = self.he.twin.face 
         norm_left = left_face.get_face_normal(self.he)
         norm_right = right_face.get_face_normal(self.he.twin)
         cos_gamma = np.dot(norm_left, norm_right)
+        if cos_gamma > 1.0: #numerical stability
+            cos_gamma = 1.0
         gamma = np.arccos(cos_gamma)
-        return gamma
+        return np.abs(gamma)
 
 #=============================================================================
 class DFace(DElement):
@@ -320,8 +323,8 @@ class DFace(DElement):
         c = np.linalg.norm(v2.pt - v1.pt)
         p  = (a + b + c)/2.
         ar = (p * (p-a)*(p-b)*(p-c) )**0.5
-        dir1 = (vrtx.pt - v1.pt) / np.linalg.norm(vrtx.pt - v1.pt)
-        dir2 = (vrtx.pt - v2.pt) / np.linalg.norm(vrtx.pt - v2.pt)
+        dir1 = (vrtx.pt - v1.pt) / a
+        dir2 = (vrtx.pt - v2.pt) / b
         cos_ang = np.dot(dir1, dir2)
         an = np.arccos(cos_ang)
         return ar/3., an
@@ -430,7 +433,12 @@ class DCtrlMesh(object):
         return min_crv, max_crv, mean_crv
 
     #-------------------------------------------------------------------------
-    def get_dist_stats(self, other):
+    def get_gaus_curvature_abs_delta(self):
+        mn, mx, _ = self.get_gaus_curvature_stats()
+        return np.abs(mn - mx)
+
+    #-------------------------------------------------------------------------
+    def get_mesh_to_mesh_dist(self, other):
         self_to_other_dist = []
         for v1 in self.v:
             curr_self_to_other_dist = []
@@ -445,12 +453,8 @@ class DCtrlMesh(object):
                 curr_other_to_self_dist.append(np.linalg.norm(v1.pt - v2.pt))
             other_to_self_dist.append(min(curr_other_to_self_dist))
 
-        max_dist = max(max(self_to_other_dist), max(other_to_self_dist))
-        min_dist = min(min(self_to_other_dist), min(other_to_self_dist))
-        mean_dist = 0.5 * (np.mean(self_to_other_dist) + \
-                           np.mean(other_to_self_dist))
-
-        return min_dist, max_dist, mean_dist
+        the_dist = max(max(self_to_other_dist), max(other_to_self_dist))
+        return the_dist
 
     #-------------------------------------------------------------------------
     def create_vertex(self, coords):
@@ -1100,11 +1104,13 @@ class DCtrlMesh(object):
         vrts = vert.get_neighbor_vertices()
         n = len(vrts)
         vrts.insert(0, vert)
-        if n > 3:
-            beta = 3./(8.*n)
-        else:
-            beta = 3./16.
-        alpha = 1. - n*beta
+        #if n > 3:
+        #    beta = 3./(8.*n)
+        #else:
+        #    beta = 3./16.
+        #alpha = 1. - n*beta
+        alpha = 0.375 + (0.375 + 0.25 * np.cos((2. * np.pi) / n)) ** 2
+        beta = (1. - alpha)/n
         weights = [alpha] + [beta]*n
         res_pt, res_nr = self.compute_sum_as_repeated_averages(vrts, weights)
         return res_pt, res_nr
