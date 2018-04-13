@@ -31,6 +31,23 @@ def avg_fn_to_str(avg_fn):
     return '_circ_' if avg_fn == circle_avg_3D else '_lin_'
 
 #-----------------------------------------------------------------------------
+def create_crystal3_mesh(id, avg_func):
+    file_prefix = 'crystal_3' + avg_fn_to_str(avg_func)
+    orig_ctrl_mesh = DCtrlMesh(id, avg_func)
+    offset = 10.
+    fktr = 3.
+    orig_ctrl_mesh.init_as_tetrahedron(offset)
+    orig_ctrl_mesh.extrude_3triang_face(5, fktr * offset)
+    #orig_ctrl_mesh.extrude_3triang_face(6, fktr * offset)
+    orig_ctrl_mesh.extrude_3triang_face(7, fktr * offset)
+    #orig_ctrl_mesh.extrude_3triang_face(8, fktr * offset)
+    fids = [f.eid for f in orig_ctrl_mesh.f]
+    for i in fids:
+        orig_ctrl_mesh.extrude_3triang_face(i, 0)
+    orig_ctrl_mesh.set_naive_normals()
+    return orig_ctrl_mesh, file_prefix
+
+#-----------------------------------------------------------------------------
 def create_tetrahedron3_mesh(id, avg_func):
     file_prefix = 'tetrahedron_3' + avg_fn_to_str(avg_func)
     orig_ctrl_mesh = DCtrlMesh(id, avg_func)
@@ -181,7 +198,9 @@ def get_initial_mesh(demo_mesh, b_quadr = True):
              ('mesh',  True)  : create_mesh4_stl_file,
              ('mesh',  False) : create_mesh3_stl_file,
              ('tetra', True)  : create_tetrahedron4_mesh,
-             ('tetra', False) : create_tetrahedron3_mesh}
+             ('tetra', False) : create_tetrahedron3_mesh,
+             ('cryst', True)  : None,
+             ('cryst', False) : create_crystal3_mesh}
 
     circ_avg_ctrl_mesh, circ_res_name = \
         demos[(demo_mesh, b_quadr)](2, circle_avg_3D)
@@ -198,13 +217,13 @@ def srf_main():
     ref_method, ref_name, b_quad = DCtrlMesh.refine_as_butterfly, 'butterfly_', False
     #ref_method, ref_name, b_quad = DCtrlMesh.refine_as_loop, 'loop_', False
 
-    example_name = 'tetra'
+    example_name = 'cryst'
     res_file_suffix = ref_name + str(n_of_iterations) + 'iters.off'
     circ_avg_ctrl_mesh, circ_res_name, \
         lin_ctrl_mesh, lin_res_name = get_initial_mesh(example_name, b_quad)
 
     orig_ctrl_mesh, _, _, _ = get_initial_mesh(example_name, b_quad)
-    #orig_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + 'fox.off')
+    orig_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + 'cryst3.off')
 
     circ_res_name += res_file_suffix
     lin_res_name += res_file_suffix

@@ -314,6 +314,15 @@ class DFace(DElement):
         return res_norm
 
     #-------------------------------------------------------------------------
+    def get_face_center(self):
+        vrts = self.get_vertices()
+        cntr = np.array([0., 0., 0.])
+        for v in vrts:
+            cntr += v.pt
+        cntr /= len(vrts)
+        return cntr
+
+    #-------------------------------------------------------------------------
     def get_triang_area_and_corner_angle(self, vrtx):
         he = self.get_vertex_hedge(vrtx)
         v1 = he.dest()
@@ -839,6 +848,72 @@ class DCtrlMesh(object):
         return res_dir
 
     #-------------------------------------------------------------------------
+    def extrude_3triang_face(self, face_id, length):
+        extr_face = self.id2obj[face_id]
+        orig_vrtxs = extr_face.get_vertices()
+        orig_edges = extr_face.get_edges()
+
+        face_nr = extr_face.get_face_normal(
+                              orig_edges[0].get_face_hedge(extr_face))
+        cntr_pt = extr_face.get_face_center()
+        trgt_pt = cntr_pt  + face_nr * length
+        extr_vrtx = self.create_vertex(trgt_pt)
+
+        extr_edges = []
+        extr_faces = []
+        n = len(orig_vrtxs)
+
+        for i in range(n):
+            extr_edges.append(self.create_edge())
+            extr_faces.append(self.create_face())
+            orig_edges[i].nullify_face_hedge(extr_face)
+
+        for i in range(n):
+            curr_v = [orig_vrtxs[i], 
+                      orig_vrtxs[(i+1)%n],
+                      extr_vrtx]
+            curr_e = [orig_edges[i],
+                      extr_edges[(i+1)%n],
+                      extr_edges[i%n]]
+            extr_faces[i].compile_face(curr_v, curr_e)
+
+        self.id2obj.pop(face_id)
+        self.f.remove(extr_face)
+
+    #-------------------------------------------------------------------------
+    def extrude_6triang_face(self, face_id, length):
+        extr_face = self.id2obj[face_id]
+        orig_vrtxs = extr_face.get_vertices()
+        orig_edges = extr_face.get_edges()
+
+        face_nr = extr_face.get_face_normal(
+                              orig_edges[0].get_face_hedge(extr_face))
+        cntr_pt = extr_face.get_face_center()
+        trgt_pt = cntr_pt  + face_nr * length
+        extr_vrtx = self.create_vertex(trgt_pt)
+
+        extr_edges = []
+        extr_faces = []
+        n = len(orig_vrtxs)
+
+        for i in range(n):
+            extr_edges.append(self.create_edge())
+            extr_faces.append(self.create_face())
+            orig_edges[i].nullify_face_hedge(extr_face)
+
+        for i in range(n):
+            curr_v = [orig_vrtxs[i], 
+                      orig_vrtxs[(i+1)%n],
+                      extr_vrtx]
+            curr_e = [orig_edges[i],
+                      extr_edges[(i+1)%n],
+                      extr_edges[i%n]]
+            extr_faces[i].compile_face(curr_v, curr_e)
+
+        self.id2obj.pop(face_id)
+        self.f.remove(extr_face)
+
+    #-------------------------------------------------------------------------
     def extrude_face(self, face_id, length):
         extr_face = self.id2obj[face_id]
         orig_vrtxs = extr_face.get_vertices()
@@ -1309,8 +1384,9 @@ class DCtrlMesh(object):
     #-------------------------------------------------------------------------
     def split_edge_as_butterfly(self, edge):
         #res_pt, res_norm = self.split_edge_as_butterfly_v1(edge)
+        res_pt, res_norm = self.split_edge_as_butterfly_v1w(edge)
         #res_pt, res_norm = self.split_edge_as_butterfly_v2(edge)
-        res_pt, res_norm = self.split_edge_as_butterfly_v3(edge)
+        #res_pt, res_norm = self.split_edge_as_butterfly_v3(edge)
         return res_pt, res_norm
 
     #-------------------------------------------------------------------------
@@ -1350,6 +1426,46 @@ class DCtrlMesh(object):
                                                     lft_nr, rgh_nr)
         if res_pt[0] == np.nan:
             a = 5
+        return res_pt, res_nr
+
+    #-------------------------------------------------------------------------
+    def split_edge_as_butterfly_v1w(self, edge):
+        '''
+           UL-------U-------UR
+             \     / \     /
+              \   /   \   /
+               \ /     \ /
+                S---R-->D
+               / \     / \
+              /   \   /   \
+             /     \ /     \
+           BL-------B-------BR
+        R =    1/2( (1+w) (1/(1+w) S + w/(1+w) U) - w (1/2 BL + 1/2 UL) )
+             + 1/2( (1+w) (1/(1+w) D + w/(1+w) B) - w (1/2 UR + 1/2 BR) )
+        '''
+        s = edge.he.vert
+        d = edge.he.twin.vert 
+        u = edge.he.prev.vert
+        b = edge.he.twin.prev.vert
+        ur = edge.he.next.twin.prev.vert
+        ul = edge.he.prev.twin.prev.vert
+        br = edge.he.twin.prev.twin.prev.vert
+        bl = edge.he.twin.next.twin.prev.vert
+        w = 1./4.
+        s_u_pt, s_u_nr = self.average_vertices(1./(1.+w), s.pt, u.pt, s.nr, u.nr )
+        d_b_pt, d_b_nr = self.average_vertices(1./(1.+w), d.pt, b.pt, d.nr, b.nr )
+        bl_ul_pt, bl_ul_nr = self.average_vertices(0.5, bl.pt, ul.pt, 
+                                                        bl.nr, ul.nr )
+        ur_br_pt, ur_br_nr = self.average_vertices(0.5, ur.pt, br.pt, 
+                                                        ur.nr, br.nr )
+        lft_pt, lft_nr = self.average_vertices((1.+w), s_u_pt, bl_ul_pt, 
+                                                       s_u_nr, bl_ul_nr)
+        rgh_pt, rgh_nr = self.average_vertices((1.+w), d_b_pt, ur_br_pt, 
+                                                       d_b_nr, ur_br_nr)
+        res_pt, res_nr = self.average_vertices(0.5, lft_pt, rgh_pt, 
+                                                    lft_nr, rgh_nr)
+        if res_pt[0] == np.nan:
+            print 'NAN in Butterfly'
         return res_pt, res_nr
            
     #-------------------------------------------------------------------------
@@ -1424,7 +1540,8 @@ class DCtrlMesh(object):
         br = edge.he.twin.prev.twin.prev.vert
         bl = edge.he.twin.next.twin.prev.vert
         vertices = [s,d, u, b, ur, ul, br, bl]
-        weights = [0.5, 0.5, 0.125, 0.125] + [-0.0625]*4
+        w = 1.
+        weights = [0.5, 0.5, 2.*w, 2.*w] + [-w]*4
         res_pt, res_nr = self.compute_sum_as_repeated_averages(\
                           vertices, weights)
         return res_pt, res_nr
@@ -1501,20 +1618,22 @@ class DCtrlMesh(object):
                                       [re, ue, le, be], ff)
 
     #-------------------------------------------------------------------------
-    def init_as_tetrahedron(self):
+    def init_as_tetrahedron(self, offset=10.):
         self.idgen = IDGenerator()
-        v1 = self.create_vertex([0., 0., 10.])
-        #alt_norm = np.array([1., 1., 1.])                     
-        #alt_norm /= np.linalg.norm(alt_norm)
-        #v1.set_nr(alt_norm)
-        v2 = self.create_vertex([10.0, 0., 0.])                     
-        v3 = self.create_vertex([10. * np.cos(2.*m.pi/3.), 
-                                 10. * np.sin(2.*m.pi/3.), 
-                                 0.])
-        v4x = -np.sin(m.pi/6.)*np.cos(m.pi/3.) * 10.
-        v4y = -np.sin(m.pi/6.)*np.sin(m.pi/3.) * 10.
-        v4z = -np.cos(m.pi/6.) * 10.
-        v4 = self.create_vertex([v4x, v4y, v4z])                     
+        #v1 = self.create_vertex([0., 0., 10.])
+        #v2 = self.create_vertex([10.0, 0., 0.])                     
+        #v3 = self.create_vertex([10. * np.cos(2.*m.pi/3.), 
+        #                         10. * np.sin(2.*m.pi/3.), 
+        #                         0.])
+        #v4x = -np.sin(m.pi/6.)*np.cos(m.pi/3.) * 10.
+        #v4y = -np.sin(m.pi/6.)*np.sin(m.pi/3.) * 10.
+        #v4z = -np.cos(m.pi/6.) * 10.
+        #v4 = self.create_vertex([v4x, v4y, v4z])                     
+
+        v1 = self.create_vertex([-offset, -offset,  offset])
+        v2 = self.create_vertex([ offset,  offset,  offset])
+        v3 = self.create_vertex([-offset,  offset, -offset])
+        v4 = self.create_vertex([ offset, -offset, -offset])
 
         f123 = self.create_face()
         f134 = self.create_face()
