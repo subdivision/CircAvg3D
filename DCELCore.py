@@ -75,14 +75,22 @@ class DVertex(DElement):
         return result
 
     #-------------------------------------------------------------------------
-    def get_neighbor_vertices(self):
+    def get_neighbor_vertices(self, anchor_edge = None):
         curr_he = self.he
+        if anchor_edge:
+            anchor_eid = anchor_edge.eid
+            while curr_he.edge.eid != anchor_eid:
+                curr_he = curr_he.twin.next
+                if curr_he == self.he:
+                    break
         result = []
+        start_he = curr_he
         while True:
             assert curr_he
             result.append(curr_he.dest())
-            curr_he = curr_he.twin.next
-            if curr_he == self.he:
+            #curr_he = curr_he.twin.next
+            curr_he = curr_he.prev.twin
+            if curr_he == start_he:
                 break
         return result
 
@@ -1383,11 +1391,29 @@ class DCtrlMesh(object):
 
     #-------------------------------------------------------------------------
     def split_edge_as_butterfly(self, edge):
+        
         #res_pt, res_norm = self.split_edge_as_butterfly_v1(edge)
-        res_pt, res_norm = self.split_edge_as_butterfly_v1w(edge)
+        res_pt, res_norm = self.split_edge_as_mod_butterfly_v1(edge)
         #res_pt, res_norm = self.split_edge_as_butterfly_v2(edge)
         #res_pt, res_norm = self.split_edge_as_butterfly_v3(edge)
+        #res_pt, res_norm = self.split_edge_as_butterfly_straight_linear(edge)
+        #res_pt, res_norm = self.get_edge_vertex_as_mid(edge)
         return res_pt, res_norm
+
+    #-------------------------------------------------------------------------
+    def split_edge_as_butterfly_straight_linear(self, edge):
+        s = edge.he.vert
+        d = edge.he.twin.vert 
+        u = edge.he.prev.vert
+        b = edge.he.twin.prev.vert
+        ur = edge.he.next.twin.prev.vert
+        ul = edge.he.prev.twin.prev.vert
+        br = edge.he.twin.prev.twin.prev.vert
+        bl = edge.he.twin.next.twin.prev.vert
+        res_pt = 0.5*s.pt + 0.5*d.pt + 0.125* u.pt + 0.125*b.pt \
+                  - 0.0625 * ur.pt - 0.0625 * ul.pt - 0.0625 * br.pt - 0.0625 * bl.pt
+        res_nr  = s.nr.copy()
+        return res_pt, res_nr
 
     #-------------------------------------------------------------------------
     def split_edge_as_butterfly_v1(self, edge):
@@ -1429,40 +1455,44 @@ class DCtrlMesh(object):
         return res_pt, res_nr
 
     #-------------------------------------------------------------------------
-    def split_edge_as_butterfly_v1w(self, edge):
-        '''
-           UL-------U-------UR
-             \     / \     /
-              \   /   \   /
-               \ /     \ /
-                S---R-->D
-               / \     / \
-              /   \   /   \
-             /     \ /     \
-           BL-------B-------BR
-        R =    1/2( (1+w) (1/(1+w) S + w/(1+w) U) - w (1/2 BL + 1/2 UL) )
-             + 1/2( (1+w) (1/(1+w) D + w/(1+w) B) - w (1/2 UR + 1/2 BR) )
-        '''
+    def get_edge_extraordinary_vertex_as_mod_butterfly(self, n, vrts):
+        if n == 3:
+            w = [5./12., -1./12., -1./12.]
+        elif n == 4:
+            w = [3./8., 0., -1./8., 0.]
+        else:
+            w = []
+            for i in range(n):
+                curr_w = 1./n * (0.25 +       np.cos( 2.*np.pi*i / n ) + \
+                                        0.5 * np.cos( 4.*np.pi*i / n ) )
+                w.append( curr_w )
+        w.append(3./4.)
+        res_pt, res_nr = self.compute_sum_as_repeated_averages( vrts, w )
+        return res_pt, res_nr
+    
+    #-------------------------------------------------------------------------
+    def split_edge_as_mod_butterfly_v1(self, edge):
         s = edge.he.vert
         d = edge.he.twin.vert 
-        u = edge.he.prev.vert
-        b = edge.he.twin.prev.vert
-        ur = edge.he.next.twin.prev.vert
-        ul = edge.he.prev.twin.prev.vert
-        br = edge.he.twin.prev.twin.prev.vert
-        bl = edge.he.twin.next.twin.prev.vert
-        w = 1./4.
-        s_u_pt, s_u_nr = self.average_vertices(1./(1.+w), s.pt, u.pt, s.nr, u.nr )
-        d_b_pt, d_b_nr = self.average_vertices(1./(1.+w), d.pt, b.pt, d.nr, b.nr )
-        bl_ul_pt, bl_ul_nr = self.average_vertices(0.5, bl.pt, ul.pt, 
-                                                        bl.nr, ul.nr )
-        ur_br_pt, ur_br_nr = self.average_vertices(0.5, ur.pt, br.pt, 
-                                                        ur.nr, br.nr )
-        lft_pt, lft_nr = self.average_vertices((1.+w), s_u_pt, bl_ul_pt, 
-                                                       s_u_nr, bl_ul_nr)
-        rgh_pt, rgh_nr = self.average_vertices((1.+w), d_b_pt, ur_br_pt, 
-                                                       d_b_nr, ur_br_nr)
-        res_pt, res_nr = self.average_vertices(0.5, lft_pt, rgh_pt, 
+        src_vrts = s.get_neighbor_vertices( edge )
+        dst_vrts = d.get_neighbor_vertices( edge )
+        src_val = len(src_vrts)
+        dst_val = len(dst_vrts)
+        dst_vrts.append( d )
+        src_vrts.append( s )
+        if src_val == dst_val == 6:
+            return self.split_edge_as_butterfly_v3(edge)
+        else:
+            if src_val != 6:
+                lft_pt, lft_nr = \
+                    self.get_edge_extraordinary_vertex_as_mod_butterfly(src_val, src_vrts)
+                res_pt, res_nr = lft_pt, lft_nr
+            if dst_val != 6:
+                rgh_pt, rgh_nr = \
+                    self.get_edge_extraordinary_vertex_as_mod_butterfly(dst_val, dst_vrts)
+                res_pt, res_nr = rgh_pt, rgh_nr
+            if src_val != 6 and dst_val != 6:
+                res_pt, res_nr = self.average_vertices(0.5, lft_pt, rgh_pt, 
                                                     lft_nr, rgh_nr)
         if res_pt[0] == np.nan:
             print 'NAN in Butterfly'
@@ -1540,8 +1570,9 @@ class DCtrlMesh(object):
         br = edge.he.twin.prev.twin.prev.vert
         bl = edge.he.twin.next.twin.prev.vert
         vertices = [s,d, u, b, ur, ul, br, bl]
-        w = 1.
-        weights = [0.5, 0.5, 2.*w, 2.*w] + [-w]*4
+        w = 0.
+        weights = [0.5 - w, 0.5 - w, 1./8. + 2. * w, 1./8. + 2.*w] \
+                  + [-1./16 - w]*4
         res_pt, res_nr = self.compute_sum_as_repeated_averages(\
                           vertices, weights)
         return res_pt, res_nr
@@ -1565,7 +1596,7 @@ class DCtrlMesh(object):
             
     #-------------------------------------------------------------------------
     def init_as_torus(self, b_triang = True, 
-                      orbit = 15., inner_radius = 5., n_of_verts = 6):
+                      orbit = 20., inner_radius = 5., n_of_verts = 6):
         self.idgen = IDGenerator()
         delta_angle = (2.*m.pi)/n_of_verts
         vertices = []

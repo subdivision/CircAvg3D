@@ -90,16 +90,16 @@ def create_tube4_mesh(id, avg_func):
     orig_ctrl_mesh = DCtrlMesh(id, avg_func)
     orig_ctrl_mesh.init_as_quad_cube(10.)
     orig_ctrl_mesh.extrude_face(9, 20.)
-    dux = 20.
-    duy = 20.
-    duz = 120.
+    dux = 60.
+    duy = 60.
+    duz = 240.
     orig_ctrl_mesh.id2obj[27].set_pt(np.array([ dux,  duy, duz]))
     orig_ctrl_mesh.id2obj[31].set_pt(np.array([-dux,  duy, duz]))
     orig_ctrl_mesh.id2obj[35].set_pt(np.array([-dux, -duy, duz]))
     orig_ctrl_mesh.id2obj[39].set_pt(np.array([ dux, -duy, duz]))
-    dux = 20.
-    duy = 20.
-    duz = 5.
+    dux = 60.
+    duy = 60.
+    duz = 0.4
     orig_ctrl_mesh.id2obj[5].set_pt(np.array([ dux,  duy, -duz]))
     orig_ctrl_mesh.id2obj[6].set_pt(np.array([ dux, -duy, -duz]))
     orig_ctrl_mesh.id2obj[7].set_pt(np.array([-dux, -duy, -duz]))
@@ -120,6 +120,7 @@ def create_tower3_mesh(id, avg_func):
     file_prefix = 'tower_3' + avg_fn_to_str(avg_func)
     orig_ctrl_mesh, _ = create_tower4_mesh(id - 1, avg_func)
     orig_ctrl_mesh = orig_ctrl_mesh.triangulize_quad_mesh()
+    orig_ctrl_mesh.set_naive_normals()
     return orig_ctrl_mesh, file_prefix
 
 #-----------------------------------------------------------------------------
@@ -134,6 +135,7 @@ def create_cube3_mesh(id, avg_func):
     file_prefix = 'cube_3' + avg_fn_to_str(avg_func)
     orig_ctrl_mesh = DCtrlMesh(id, avg_func)
     orig_ctrl_mesh.init_as_triang_cube(10.)
+    orig_ctrl_mesh.set_naive_normals()
     return orig_ctrl_mesh, file_prefix
 
 #-----------------------------------------------------------------------------
@@ -142,7 +144,7 @@ def create_torus4_mesh(id, avg_func):
     file_prefix =   'torus'+ str(n_of_verts_in_init_torus) \
                   + '_4' + avg_fn_to_str(avg_func)
     orig_ctrl_mesh = DCtrlMesh(id, avg_func)
-    orig_ctrl_mesh.init_as_torus(False, n_of_verts_in_init_torus)
+    orig_ctrl_mesh.init_as_torus(False, n_of_verts = n_of_verts_in_init_torus)
     return orig_ctrl_mesh, file_prefix
 
 #-----------------------------------------------------------------------------
@@ -151,7 +153,7 @@ def create_torus3_mesh(id, avg_func):
     file_prefix =   'torus'+ str(n_of_verts_in_init_torus) \
                   + '_3' + avg_fn_to_str(avg_func)
     orig_ctrl_mesh = DCtrlMesh(id, avg_func)
-    orig_ctrl_mesh.init_as_torus(True, n_of_verts_in_init_torus)
+    orig_ctrl_mesh.init_as_torus(True, n_of_verts = n_of_verts_in_init_torus)
     return orig_ctrl_mesh, file_prefix
 
 #-----------------------------------------------------------------------------
@@ -181,16 +183,17 @@ def create_mesh4_stl_file(id, avg_func):
 def get_initial_mesh(demo_mesh, b_quadr = True):
     ''' 'tower', 'cube', 'torus', 'tube', 'mesh', 'tetra'
     '''
-    global stl_file_name
+    global stl_file_name, n_of_verts_in_init_torus
     n_of_verts_in_init_torus = 6
-    stl_file_name = 'fox.stl'
+    #stl_file_name = 'fox.stl'
+    stl_file_name = 'tiger.stl'
     #stl_file_name = 'bunny.stl'
     #stl_file_name = 'cube.stl'
 
     demos = {('tower', True)  : create_tower4_mesh,
              ('tower', False) : create_tower3_mesh,
              ('cube',  True)  : create_cube4_mesh,
-             ('cube',  False) : create_cube4_mesh,
+             ('cube',  False) : create_cube3_mesh,
              ('torus', True)  : create_torus4_mesh,
              ('torus', False) : create_torus3_mesh,
              ('tube',  True)  : create_tube4_mesh,
@@ -217,13 +220,13 @@ def srf_main():
     ref_method, ref_name, b_quad = DCtrlMesh.refine_as_butterfly, 'butterfly_', False
     #ref_method, ref_name, b_quad = DCtrlMesh.refine_as_loop, 'loop_', False
 
-    example_name = 'cryst'
+    example_name = 'tube'
     res_file_suffix = ref_name + str(n_of_iterations) + 'iters.off'
     circ_avg_ctrl_mesh, circ_res_name, \
         lin_ctrl_mesh, lin_res_name = get_initial_mesh(example_name, b_quad)
 
     orig_ctrl_mesh, _, _, _ = get_initial_mesh(example_name, b_quad)
-    orig_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + 'cryst3.off')
+    orig_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + example_name + '3.off')
 
     circ_res_name += res_file_suffix
     lin_res_name += res_file_suffix
@@ -232,19 +235,25 @@ def srf_main():
         circ_avg_ctrl_mesh = ref_method(circ_avg_ctrl_mesh)
         lin_ctrl_mesh = ref_method(lin_ctrl_mesh)
 
-    cmda, ccad, cmmd =  circ_avg_ctrl_mesh.get_dehidral_angle_stats()[1],\
-                        circ_avg_ctrl_mesh.get_gaus_curvature_abs_delta(),\
-                        circ_avg_ctrl_mesh.get_mesh_to_mesh_dist(orig_ctrl_mesh)
-    lmda, lcad, lmmd =  lin_ctrl_mesh.get_dehidral_angle_stats()[1],\
-                        lin_ctrl_mesh.get_gaus_curvature_abs_delta(),\
-                        lin_ctrl_mesh.get_mesh_to_mesh_dist(orig_ctrl_mesh)
-    print 'Linear {:1.5f} & {:1.5f} & {:1.5f}'.format(lmda, lcad, lmmd)
-    print 'Circle {:1.5f} & {:1.5f} & {:1.5f}'.format(cmda, ccad, cmmd)
+    #cmda, ccad, cmmd =  circ_avg_ctrl_mesh.get_dehidral_angle_stats()[1],\
+    #                    circ_avg_ctrl_mesh.get_gaus_curvature_abs_delta(),\
+    #                    circ_avg_ctrl_mesh.get_mesh_to_mesh_dist(orig_ctrl_mesh)
+    #lmda, lcad, lmmd =  lin_ctrl_mesh.get_dehidral_angle_stats()[1],\
+    #                    lin_ctrl_mesh.get_gaus_curvature_abs_delta(),\
+    #                    lin_ctrl_mesh.get_mesh_to_mesh_dist(orig_ctrl_mesh)
+    #print 'Linear {:1.5f} & {:1.5f} & {:1.5f}'.format(lmda, lcad, lmmd)
+    #print 'Circle {:1.5f} & {:1.5f} & {:1.5f}'.format(cmda, ccad, cmmd)
+
     #plot_results(orig_ctrl_mesh, circ_avg_ctrl_mesh, lin_ctrl_mesh)   
     circ_avg_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + circ_res_name)
     lin_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + lin_res_name)
     
-    
+    #Tube3 butterfly, 3iters, v1
+    #Linear    2.94997 & 0.58621 & 56.81865
+    #Circle v1 1.08278 & 0.09594 & 55.79320
+    #Circle v2 1.10755 & 0.07216 & 55.76661
+    #Circle v3 1.16634 & 0.07225 & 55.83580
+
 #-----------------------------------------------------------------------------
 def rotate_normals():
     n_of_iterations = 4
