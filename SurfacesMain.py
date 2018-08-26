@@ -11,6 +11,12 @@ INP_PATH_PREFIX = 'C:/TAU/InputMeshes/'
 RES_PATH_PREFIX = 'C:/TAU/DebugMeshes/'
 
 #-----------------------------------------------------------------------------
+def blend_meshes(a_cm, b_cm):
+    ''' a_cm get modified '''
+    min_d, max_d, avg_d = a_cm.get_corresp_mesh_dist(b_cm)
+    a_cm.morph_to_corresp_mesh(b_cm, max_d)
+
+#-----------------------------------------------------------------------------
 def plot_results(orig_ctrl_mesh, circ_avg_ctrl_mesh, lin_ctrl_mesh):
     mpl.rcParams['legend.fontsize'] = 10
     fig = plt.figure()
@@ -213,14 +219,14 @@ def get_initial_mesh(demo_mesh, b_quadr = True):
     return circ_avg_ctrl_mesh, circ_res_name, lin_ctrl_mesh, lin_res_name 
 #-----------------------------------------------------------------------------
 def srf_main():
-    n_of_iterations = 3
+    n_of_iterations = 5
 
     #ref_method, ref_name, b_quad = DCtrlMesh.refine_as_catmull_clark, 'cc_', True
     #ref_method, ref_name, b_quad = DCtrlMesh.refine_as_kob4pt, 'kob4pt_', True
-    ref_method, ref_name, b_quad = DCtrlMesh.refine_as_butterfly, 'butterfly_', False
-    #ref_method, ref_name, b_quad = DCtrlMesh.refine_as_loop, 'loop_', False
+    #ref_method, ref_name, b_quad = DCtrlMesh.refine_as_butterfly, 'butterfly_', False
+    ref_method, ref_name, b_quad = DCtrlMesh.refine_as_loop, 'loop_', False
 
-    example_name = 'tube'
+    example_name = 'tower'
     res_file_suffix = ref_name + str(n_of_iterations) + 'iters.off'
     circ_avg_ctrl_mesh, circ_res_name, \
         lin_ctrl_mesh, lin_res_name = get_initial_mesh(example_name, b_quad)
@@ -245,9 +251,13 @@ def srf_main():
     #print 'Circle {:1.5f} & {:1.5f} & {:1.5f}'.format(cmda, ccad, cmmd)
 
     #plot_results(orig_ctrl_mesh, circ_avg_ctrl_mesh, lin_ctrl_mesh)   
+
+    blend_meshes(circ_avg_ctrl_mesh, lin_ctrl_mesh)
+
     circ_avg_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + circ_res_name)
     lin_ctrl_mesh.dump_obj_file(RES_PATH_PREFIX + lin_res_name)
-    
+    d = lin_ctrl_mesh.get_corresp_mesh_dist(circ_avg_ctrl_mesh)
+    print d
     #Tube3 butterfly, 3iters, v1
     #Linear    2.94997 & 0.58621 & 56.81865
     #Circle v1 1.08278 & 0.09594 & 55.79320

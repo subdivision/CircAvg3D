@@ -41,6 +41,10 @@ class DVertex(DElement):
         self.pt = np.copy(pt)
 
     #-------------------------------------------------------------------------
+    def move_pt(self, offset_vec):
+        self.pt += offset_vec
+
+    #-------------------------------------------------------------------------
     def set_nr(self, nr):
         self.nr = np.copy(nr)
         self.nr /= np.linalg.norm(self.nr)
@@ -472,6 +476,30 @@ class DCtrlMesh(object):
 
         the_dist = max(max(self_to_other_dist), max(other_to_self_dist))
         return the_dist
+
+    #-------------------------------------------------------------------------
+    def get_corresp_mesh_dist(self, other):
+        '''Compute distances between corresponding vertices of two meshes
+           Assumption: meshes have the same structure'''
+        dists = []
+        for i in range(len(self.v)):
+            self_curr_vrtx = self.v[i]
+            othr_curr_vrtx = other.v[i]
+            dists.append(
+                np.linalg.norm(self_curr_vrtx.pt - othr_curr_vrtx.pt))
+
+        return min(dists), max(dists), np.mean(dists)
+
+    #-------------------------------------------------------------------------
+    def morph_to_corresp_mesh(self, other, d):
+        dists = []
+        for i in range(len(self.v)):
+            self_curr_vrtx = self.v[i]
+            othr_curr_vrtx = other.v[i]
+            move_vec = othr_curr_vrtx.pt - self_curr_vrtx.pt
+            move_vec /= np.linalg.norm(move_vec)
+            move_vec *= d
+            self_curr_vrtx.move_pt(move_vec)
 
     #-------------------------------------------------------------------------
     def create_vertex(self, coords):
